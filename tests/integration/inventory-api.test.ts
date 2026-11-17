@@ -139,6 +139,26 @@ databaseSuite("inventory API integration", () => {
         expect(response.body.error.code).toBe("VALIDATION_ERROR");
     });
 
+    it.each(["client@example.com", "CLIENT@EXAMPLE.COM"])(
+        "returns the email conflict when %s is already registered",
+        async (email) => {
+            const authorization = { Authorization: `Bearer ${await accessToken()}` };
+            const client = { name: "Cliente", email: "client@example.com" };
+            await prisma.client.create({ data: { ...client, email } });
+
+            await request(app)
+                .post("/client")
+                .set(authorization)
+                .send(client)
+                .expect(409, {
+                    error: {
+                        code: "REQUEST_ERROR",
+                        message: "Este e-mail já está cadastrado no sistema.",
+                    },
+                });
+        },
+    );
+
     it("keeps stock consistent across quantity reductions and concurrent returns", async () => {
         const token = await accessToken();
         const authorization = { Authorization: `Bearer ${token}` };

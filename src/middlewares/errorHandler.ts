@@ -1,6 +1,6 @@
 import { AppError } from "@src/shared/errors/app.error.js";
 import { logger } from "@src/shared/logger.js";
-import { handlePrismaError } from "@src/shared/utils/prisma.js";
+import { toPrismaAppError } from "@src/shared/utils/prisma.js";
 import type { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 
@@ -38,15 +38,8 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
         );
     }
 
-    let error: unknown = err;
-
-    try {
-        handlePrismaError(err);
-    } catch (e) {
-        error = e;
-    }
-
-    if (error instanceof AppError) {
+    const error = toPrismaAppError(err);
+    if (error) {
         if (error.statusCode >= 500) {
             logger.error(
                 { err, method: req.method, path: req.originalUrl },
@@ -56,9 +49,6 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
         return sendError(res, error);
     }
 
-    logger.error(
-        { err: error, method: req.method, path: req.originalUrl },
-        "Unhandled request error",
-    );
+    logger.error({ err, method: req.method, path: req.originalUrl }, "Unhandled request error");
     return sendError(res, new AppError("Erro interno.", 500, "INTERNAL_ERROR"));
 }
