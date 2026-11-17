@@ -1,9 +1,12 @@
 import { z } from "zod";
 
+export const MAX_INT32 = 2_147_483_647;
+
 export const idSchema = z
     .number()
     .int("O ID deve ser um número inteiro.")
-    .positive("O ID deve ser positivo.");
+    .positive("O ID deve ser positivo.")
+    .max(MAX_INT32, `O ID deve ser menor ou igual a ${MAX_INT32}.`);
 
 export const emailSchema = z
     .string({ error: "O e-mail é obrigatório." })
@@ -37,7 +40,8 @@ export const loginPasswordSchema = z
 export const quantitySchema = z
     .number({ error: "A quantidade deve ser um número." })
     .int("A quantidade deve ser um número inteiro.")
-    .nonnegative("A quantidade não pode ser negativa.");
+    .nonnegative("A quantidade não pode ser negativa.")
+    .max(MAX_INT32, `A quantidade máxima é ${MAX_INT32}.`);
 
 export const positiveQuantitySchema = quantitySchema.min(1, "A quantidade mínima é 1.");
 

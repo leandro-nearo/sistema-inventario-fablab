@@ -2,6 +2,9 @@ import { createClientSchema } from "@src/modules/client/client.schemas.js";
 import { createItemSchema } from "@src/modules/item/item.schemas.js";
 import { createLoanSchema } from "@src/modules/loan/loan.schemas.js";
 import { createUserSchema } from "@src/modules/user/user.schemas.js";
+import { IdValidator } from "@src/shared/utils/validators/id.validator.js";
+import { QuantityValidator } from "@src/shared/utils/validators/quantity.validator.js";
+import { idSchema, positiveQuantitySchema, quantitySchema } from "@src/shared/validation/fields.js";
 import { describe, expect, it } from "vitest";
 
 describe("input schemas", () => {
@@ -65,6 +68,18 @@ describe("input schemas", () => {
         });
 
         expect(result.success).toBe(false);
+    });
+
+    it("limits IDs and quantities to the PostgreSQL integer range", () => {
+        const maximum = 2_147_483_647;
+        for (const schema of [idSchema, quantitySchema, positiveQuantitySchema]) {
+            expect(schema.safeParse(maximum).success).toBe(true);
+            expect(schema.safeParse(maximum + 1).success).toBe(false);
+        }
+        expect(() => IdValidator.validate(maximum)).not.toThrow();
+        expect(() => IdValidator.validate(maximum + 1)).toThrow();
+        expect(() => QuantityValidator.validate(maximum)).not.toThrow();
+        expect(() => QuantityValidator.validate(maximum + 1)).toThrow();
     });
 
     it("requires unambiguous ISO dates", () => {

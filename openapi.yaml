@@ -571,6 +571,7 @@ components:
       schema:
         type: integer
         minimum: 1
+        maximum: 2147483647
     Page:
       name: page
       in: query
@@ -809,6 +810,7 @@ components:
         totalQuantity:
           type: integer
           minimum: 0
+          maximum: 2147483647
         location:
           type: string
     UpdateItemInput:
@@ -823,6 +825,7 @@ components:
         totalQuantity:
           type: integer
           minimum: 0
+          maximum: 2147483647
         adjustmentReason:
           type: string
           minLength: 3
@@ -890,9 +893,11 @@ components:
         clientId:
           type: integer
           minimum: 1
+          maximum: 2147483647
         itemId:
           type: integer
           minimum: 1
+          maximum: 2147483647
         loanDate:
           type: string
         dueDate:
@@ -900,6 +905,7 @@ components:
         loanQuantity:
           type: integer
           minimum: 1
+          maximum: 2147483647
         returnDate:
           type: [string, "null"]
     UpdateLoanInput:
