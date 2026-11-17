@@ -208,6 +208,53 @@ databaseSuite("inventory API integration", () => {
         expect(reopenedItem.availableQuantity).toBe(1);
     });
 
+    it("reserves the last unit once and keeps a loan closed when stock is empty", async () => {
+        const authorization = { Authorization: `Bearer ${await accessToken()}` };
+        const client = await prisma.client.create({
+            data: { name: "Cliente", email: "client@example.com" },
+        });
+        const item = await prisma.item.create({
+            data: { name: "Arduino", location: "A1", totalQuantity: 1, availableQuantity: 1 },
+        });
+        const loan = {
+            clientId: client.id,
+            itemId: item.id,
+            loanDate: "2026-09-01",
+            dueDate: "2026-09-20",
+            loanQuantity: 1,
+        };
+        const create = () => request(app).post("/loan").set(authorization);
+        const attempts = await Promise.all([create().send(loan), create().send(loan)]);
+        expect(attempts.map(({ status }) => status).sort()).toEqual([201, 400]);
+        const stockError = {
+            code: "REQUEST_ERROR",
+            message: "Quantidade máxima disponível em estoque: 0.",
+        };
+        expect(attempts.find(({ status }) => status === 400)?.body.error).toEqual(stockError);
+
+        const returned = await create()
+            .send({ ...loan, returnDate: loan.dueDate })
+            .expect(201);
+        await request(app)
+            .patch(`/loan/${returned.body.id}`)
+            .set(authorization)
+            .send({ returnDate: null })
+            .expect(400, { error: stockError });
+        await expect(
+            prisma.loan.findUniqueOrThrow({ where: { id: returned.body.id } }),
+        ).resolves.toMatchObject({ returnDate: new Date(loan.dueDate) });
+        await expect(
+            prisma.item.findUniqueOrThrow({ where: { id: item.id } }),
+        ).resolves.toMatchObject({ availableQuantity: 0 });
+        expect(await prisma.loan.count({ where: { itemId: item.id } })).toBe(2);
+
+        for (const returnDate of [null, loan.dueDate]) {
+            const missing = await create().send({ ...loan, itemId: item.id + 1, returnDate });
+            expect(missing.status).toBe(404);
+            expect(missing.body.error.code).toBe("ITEM_NOT_FOUND");
+        }
+    });
+
     it("cancels loans without deleting their audit history", async () => {
         const token = await accessToken();
         const authorization = { Authorization: `Bearer ${token}` };

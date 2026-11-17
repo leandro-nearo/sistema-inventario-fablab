@@ -17,7 +17,7 @@ export class LoanService {
         CreateLoanValidator.validate(data);
 
         try {
-            const loan = await this.loanRepository.createWithStockReservation({
+            return await this.loanRepository.createWithStockReservation({
                 loanDate: new Date(data.loanDate),
                 dueDate: new Date(data.dueDate),
                 returnDate: data.returnDate ? new Date(data.returnDate) : null,
@@ -27,12 +27,6 @@ export class LoanService {
                 createdById: actorId,
                 returnedById: data.returnDate ? actorId : null,
             });
-
-            if (!loan) {
-                throw new AppError(MESSAGES.ITEM.NOT_FOUND.GENERAL, 404);
-            }
-
-            return loan;
         } catch (error) {
             if (error instanceof InsufficientStockError) {
                 throw new AppError(

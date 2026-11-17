@@ -25,7 +25,7 @@ export type LoanUpdateData = {
 };
 
 export interface LoanRepository {
-    createWithStockReservation(data: LoanCreateData): Promise<Loan | null>;
+    createWithStockReservation(data: LoanCreateData): Promise<Loan>;
     list(options: {
         skip: number;
         take: number;
@@ -36,8 +36,23 @@ export interface LoanRepository {
     cancelWithStock(id: number, actorId: number): Promise<Loan | null>;
 }
 
+async function reserveStock(tx: Prisma.TransactionClient, itemId: number, quantity: number) {
+    const reserved = await tx.item.updateMany({
+        where: { id: itemId, availableQuantity: { gte: quantity } },
+        data: { availableQuantity: { decrement: quantity } },
+    });
+    if (reserved.count === 1) return;
+
+    const item = await tx.item.findUnique({
+        where: { id: itemId },
+        select: { availableQuantity: true },
+    });
+    if (!item) throw new RelatedResourceNotFoundError("item");
+    throw new InsufficientStockError(item.availableQuantity);
+}
+
 export class PrismaLoanRepository implements LoanRepository {
-    async createWithStockReservation(data: LoanCreateData): Promise<Loan | null> {
+    async createWithStockReservation(data: LoanCreateData): Promise<Loan> {
         return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             const client = await tx.client.findUnique({
                 where: { id: data.clientId },
@@ -45,31 +60,14 @@ export class PrismaLoanRepository implements LoanRepository {
             });
             if (!client) throw new RelatedResourceNotFoundError("client");
 
-            const item = await tx.item.findUnique({
-                where: { id: data.itemId },
-                select: { id: true, availableQuantity: true },
-            });
-
-            if (!item) {
-                throw new RelatedResourceNotFoundError("item");
-            }
-
             if (data.returnDate === null) {
-                const reserved = await tx.item.updateMany({
-                    where: {
-                        id: data.itemId,
-                        availableQuantity: { gte: data.loanQuantity },
-                    },
-                    data: { availableQuantity: { decrement: data.loanQuantity } },
+                await reserveStock(tx, data.itemId, data.loanQuantity);
+            } else {
+                const item = await tx.item.findUnique({
+                    where: { id: data.itemId },
+                    select: { id: true },
                 });
-
-                if (reserved.count !== 1) {
-                    const current = await tx.item.findUnique({
-                        where: { id: data.itemId },
-                        select: { availableQuantity: true },
-                    });
-                    throw new InsufficientStockError(current?.availableQuantity ?? 0);
-                }
+                if (!item) throw new RelatedResourceNotFoundError("item");
             }
 
             return tx.loan.create({ data });
@@ -147,22 +145,7 @@ export class PrismaLoanRepository implements LoanRepository {
             }
 
             if (isBeingReopened) {
-                const reserved = await tx.item.updateMany({
-                    where: {
-                        id: existing.itemId,
-                        availableQuantity: { gte: existing.loanQuantity },
-                    },
-                    data: { availableQuantity: { decrement: existing.loanQuantity } },
-                });
-
-                if (reserved.count !== 1) {
-                    const item = await tx.item.findUnique({
-                        where: { id: existing.itemId },
-                        select: { availableQuantity: true },
-                    });
-
-                    throw new InsufficientStockError(item?.availableQuantity ?? 0);
-                }
+                await reserveStock(tx, existing.itemId, existing.loanQuantity);
             }
 
             return tx.loan.update({
