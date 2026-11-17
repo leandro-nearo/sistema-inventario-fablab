@@ -138,7 +138,7 @@ export class PrismaItemRepository implements ItemRepository {
     listAdjustments(itemId: number, { skip, take }: { skip: number; take: number }) {
         return prisma.inventoryAdjustment.findMany({
             where: { itemId },
-            orderBy: { createdAt: "desc" },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
             skip,
             take,
         });

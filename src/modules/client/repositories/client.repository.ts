@@ -54,7 +54,7 @@ export class PrismaClientRepository implements ClientRepository {
             include: {
                 loans: {
                     include: { item: true },
-                    orderBy: { loanDate: "desc" },
+                    orderBy: [{ loanDate: "desc" }, { id: "desc" }],
                     skip,
                     take,
                 },

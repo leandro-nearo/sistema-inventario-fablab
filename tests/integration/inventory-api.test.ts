@@ -235,4 +235,48 @@ databaseSuite("inventory API integration", () => {
         expect(storedLoan.cancelledAt).not.toBeNull();
         expect(storedItem.availableQuantity).toBe(2);
     });
+
+    it("uses the ID to order history pages when dates are equal", async () => {
+        const authorization = { Authorization: `Bearer ${await accessToken()}` };
+        const client = await prisma.client.create({
+            data: { name: "Cliente", email: "client@example.com" },
+        });
+        const item = await prisma.item.create({
+            data: { name: "Arduino", location: "A1", totalQuantity: 2, availableQuantity: 2 },
+        });
+        const date = new Date("2026-09-01T10:00:00Z");
+        const loan = {
+            clientId: client.id,
+            itemId: item.id,
+            loanDate: date,
+            dueDate: date,
+            returnDate: date,
+            loanQuantity: 1,
+        };
+        const loans = await prisma.loan.createManyAndReturn({ data: [loan, loan] });
+        const adjustments = await prisma.inventoryAdjustment.createManyAndReturn({
+            data: [0, 1].map((previous) => ({
+                itemId: item.id,
+                previousTotal: previous,
+                newTotal: previous + 1,
+                previousAvailable: previous,
+                newAvailable: previous + 1,
+                createdAt: date,
+                reason: "Entrada de material",
+            })),
+        });
+        const loanIds = loans.map(({ id }) => id).sort((a, b) => b - a);
+        const adjustmentIds = adjustments.map(({ id }) => id).sort((a, b) => b - a);
+
+        for (const page of [1, 2]) {
+            const getPage = (path: string) =>
+                request(app).get(path).set(authorization).query({ page, pageSize: 1 }).expect(200);
+            const list = await getPage("/loan");
+            const history = await getPage(`/client/${client.id}/loans`);
+            const audit = await getPage(`/item/${item.id}/adjustments`);
+            expect(list.body).toMatchObject([{ id: loanIds[page - 1] }]);
+            expect(history.body.loans).toMatchObject([{ id: loanIds[page - 1] }]);
+            expect(audit.body).toMatchObject([{ id: adjustmentIds[page - 1] }]);
+        }
+    });
 });

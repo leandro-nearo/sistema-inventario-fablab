@@ -32,6 +32,8 @@ Status usuais: `400` validação/JSON, `401` autenticação, `403` papel insufic
 
 Endpoints de lista aceitam `page` (padrão 1) e `pageSize` (padrão 50, máximo 100). A resposta continua sendo um array para manter compatibilidade.
 
+A lista de empréstimos e o histórico do cliente usam a data do empréstimo em ordem decrescente. O histórico de ajustes usa a data de criação em ordem decrescente. Em caso de empate, o maior ID vem primeiro.
+
 ## Usuários
 
 | Método | Rota | Papel | Corpo/consulta | Resposta |

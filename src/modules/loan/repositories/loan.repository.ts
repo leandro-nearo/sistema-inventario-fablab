@@ -99,7 +99,7 @@ export class PrismaLoanRepository implements LoanRepository {
 
         return prisma.loan.findMany({
             ...(where ? { where } : {}),
-            orderBy: { loanDate: "desc" },
+            orderBy: [{ loanDate: "desc" }, { id: "desc" }],
             skip,
             take,
         });
