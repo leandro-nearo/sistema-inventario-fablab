@@ -27,6 +27,17 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
         return sendError(res, new AppError("JSON inválido.", 400, "INVALID_JSON"));
     }
 
+    if (err instanceof Error && "type" in err && err.type === "entity.too.large") {
+        return sendError(
+            res,
+            new AppError(
+                "O corpo da requisição excede o limite permitido.",
+                413,
+                "PAYLOAD_TOO_LARGE",
+            ),
+        );
+    }
+
     let error: unknown = err;
 
     try {

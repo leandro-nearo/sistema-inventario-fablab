@@ -4,4 +4,5 @@ process.env.JWT_SECRET = "test-access-secret-with-at-least-32-characters";
 process.env.JWT_SECRET_REFRESH = "test-refresh-secret-with-at-least-32-characters";
 process.env.JWT_EXPIRES_IN = "15m";
 process.env.JWT_REFRESH_EXPIRES_IN = "7d";
+process.env.JSON_BODY_LIMIT = "100kb";
 process.env.LOG_LEVEL = "silent";

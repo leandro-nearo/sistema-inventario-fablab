@@ -28,6 +28,8 @@ Login e refresh possuem limite de 20 requisições por 15 minutos por endereço.
 
 Status usuais: `400` validação/JSON, `401` autenticação, `403` papel insuficiente, `404` recurso/rota, `409` conflito de estado ou unicidade, `429` limite de requisições e `500` falha inesperada.
 
+Um corpo JSON que excede o limite configurado em `JSON_BODY_LIMIT` recebe `413` com o código `PAYLOAD_TOO_LARGE`. O limite padrão é 100 KB.
+
 ## Paginação
 
 Endpoints de lista aceitam `page` (padrão 1) e `pageSize` (padrão 50, máximo 100). A resposta continua sendo um array para manter compatibilidade.

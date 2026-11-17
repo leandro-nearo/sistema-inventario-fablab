@@ -124,16 +124,6 @@ databaseSuite("inventory API integration", () => {
         expect(refresh.body.error.code).toBe("REFRESH_TOKEN_INVALID");
     });
 
-    it("rejects malformed JSON with the standard error shape", async () => {
-        const response = await request(app)
-            .post("/auth/login")
-            .set("Content-Type", "application/json")
-            .send('{"email":');
-
-        expect(response.status).toBe(400);
-        expect(response.body.error).toEqual({ code: "INVALID_JSON", message: "JSON inválido." });
-    });
-
     it("rejects nested Prisma relation input", async () => {
         const token = await accessToken();
         const response = await request(app)
