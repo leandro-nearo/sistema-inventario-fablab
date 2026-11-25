@@ -69,13 +69,15 @@ A senha deve ter 12 ou mais caracteres e no máximo 72 bytes. Alterá-la revoga 
 | Método | Rota | Papel | Corpo/consulta | Resposta |
 |---|---|---|---|---|
 | `POST` | `/item` | `ADMIN`, `OPERATOR` | `name`, `totalQuantity`, `location`, `category?` | `201 Item` |
-| `GET` | `/item` | Autenticado | `page`, `pageSize`, `search?` | `200 Item[]` |
+| `GET` | `/item` | Autenticado | `page`, `pageSize`, `search?`, `availability?` | `200 Item[]` |
 | `GET` | `/item/by-category` | Autenticado | `category`, paginação | `200 Item[]` |
 | `GET` | `/item/by-location` | Autenticado | `location`, paginação | `200 Item[]` |
 | `GET` | `/item/:id` | Autenticado | — | `200 Item` |
 | `GET` | `/item/:id/adjustments` | `ADMIN` | paginação | `200 InventoryAdjustment[]` |
 | `PATCH` | `/item/:id` | `ADMIN`, `OPERATOR` | `name?`, `category?`, `totalQuantity?`, `adjustmentReason?`, `location?` | `200 Item` |
 | `DELETE` | `/item/:id` | `ADMIN` | — | `204` |
+
+Em `GET /item`, `availability=available` seleciona itens com quantidade disponível maior que zero. `availability=unavailable` seleciona itens com quantidade disponível zero, inclusive quando todas as unidades estão emprestadas. Omita `availability` para incluir todos os itens.
 
 `totalQuantity` é inteiro e não-negativo. `availableQuantity` é calculado pelo servidor. Alterar `totalQuantity` exige `adjustmentReason` (3–200 caracteres) e gera uma entrada de auditoria. `category: null` remove a categoria. A quantidade total não pode ficar abaixo das unidades atualmente emprestadas. Itens com histórico ou ajustes não podem ser apagados (`409`).
 

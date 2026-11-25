@@ -64,6 +64,7 @@ label {
 }
 
 input,
+select,
 button {
     box-sizing: border-box;
     min-height: 2.75rem;
@@ -73,7 +74,8 @@ button {
     font: inherit;
 }
 
-input {
+input,
+select {
     min-width: 0;
     width: 100%;
     border-color: #768e88;
@@ -115,8 +117,10 @@ button:disabled {
 }
 
 .search-controls {
-    display: flex;
-    max-width: 34rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: end;
+    max-width: 48rem;
     gap: 0.5rem;
 }
 
@@ -166,6 +170,14 @@ tr > :nth-child(3) {
 }
 
 @media (max-width: 36rem) {
+    .search-controls {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .search-term {
+        grid-column: span 2;
+    }
+
     .table-hint {
         display: block;
         margin: 0 0 0.5rem;

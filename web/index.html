@@ -31,9 +31,19 @@
                 <div class="panel">
                     <search>
                         <form id="search-form">
-                            <label for="search">Nome, categoria ou localização</label>
                             <div class="search-controls">
-                                <input id="search" name="search" type="search" maxlength="100" />
+                                <div class="search-term">
+                                    <label for="search">Nome, categoria ou localização</label>
+                                    <input id="search" name="search" type="search" maxlength="100" />
+                                </div>
+                                <div>
+                                    <label for="availability">Disponibilidade</label>
+                                    <select id="availability" name="availability">
+                                        <option value="">Todos os itens</option>
+                                        <option value="available">Disponíveis</option>
+                                        <option value="unavailable">Indisponíveis</option>
+                                    </select>
+                                </div>
                                 <button type="submit">Buscar</button>
                             </div>
                         </form>

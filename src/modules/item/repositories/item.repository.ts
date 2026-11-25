@@ -5,6 +5,7 @@ import {
     InventoryInvariantError,
 } from "@src/shared/errors/inventory-capacity.error.js";
 import { escapeLikePattern } from "@src/shared/utils/postgres-like.js";
+import type { ItemListOptions } from "../item.dtos.js";
 
 export type ItemUpdateData = {
     name?: string;
@@ -16,7 +17,7 @@ export type ItemUpdateData = {
 
 export interface ItemRepository {
     create(data: Prisma.ItemCreateInput): Promise<Item>;
-    list(options: { skip: number; take: number; search?: string }): Promise<Item[]>;
+    list(options: ItemListOptions): Promise<Item[]>;
     findById(id: number): Promise<Item | null>;
     listByCategory(category: string, pagination: { skip: number; take: number }): Promise<Item[]>;
     listByLocation(location: string, pagination: { skip: number; take: number }): Promise<Item[]>;
@@ -37,20 +38,22 @@ export class PrismaItemRepository implements ItemRepository {
         return prisma.item.create({ data });
     }
 
-    list({ skip, take, search }: { skip: number; take: number; search?: string }) {
+    list({ skip, take, search, availability }: ItemListOptions) {
+        const where: Prisma.ItemWhereInput = {};
         const pattern = search && escapeLikePattern(search);
+        if (pattern) {
+            where.OR = [
+                { name: { contains: pattern, mode: "insensitive" } },
+                { category: { contains: pattern, mode: "insensitive" } },
+                { location: { contains: pattern, mode: "insensitive" } },
+            ];
+        }
+        if (availability) {
+            where.availableQuantity = availability === "available" ? { gt: 0 } : 0;
+        }
+
         return prisma.item.findMany({
-            ...(pattern
-                ? {
-                      where: {
-                          OR: [
-                              { name: { contains: pattern, mode: "insensitive" } },
-                              { category: { contains: pattern, mode: "insensitive" } },
-                              { location: { contains: pattern, mode: "insensitive" } },
-                          ],
-                      },
-                  }
-                : {}),
+            where,
             orderBy: { id: "asc" },
             skip,
             take,

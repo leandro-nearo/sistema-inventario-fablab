@@ -9,6 +9,7 @@ const inventory = document.querySelector("#inventory");
 const inventoryTitle = document.querySelector("#inventory-title");
 const searchForm = document.querySelector("#search-form");
 const searchField = document.querySelector("#search");
+const availabilityField = document.querySelector("#availability");
 const searchButton = searchForm.querySelector("button");
 const inventoryStatus = document.querySelector("#inventory-status");
 const tableRegion = document.querySelector("#table-region");
@@ -21,7 +22,7 @@ const pageLabel = document.querySelector("#page");
 const pageSize = 20;
 let tokens = null;
 let page = 1;
-let search = "";
+let filters = { search: "", availability: "" };
 let hasNext = false;
 let pendingItems = null;
 
@@ -62,7 +63,7 @@ function updateControls() {
 function showLogin(message) {
     tokens = null;
     page = 1;
-    search = "";
+    filters = { search: "", availability: "" };
     hasNext = false;
     searchForm.reset();
     rows.replaceChildren();
@@ -89,10 +90,13 @@ async function getItems(path, session) {
     if (session === tokens) return request(path, { accessToken: session.accessToken });
 }
 
-async function loadPage(requestedPage, requestedSearch) {
+async function loadPage(requestedPage, requestedFilters) {
     const session = tokens;
     if (pendingItems || !session) return;
-    const query = new URLSearchParams({ page: requestedPage, pageSize, search: requestedSearch });
+    const { search, availability } = requestedFilters;
+    const filterChanged = search !== filters.search || availability !== filters.availability;
+    const query = new URLSearchParams({ page: requestedPage, pageSize, search });
+    if (availability) query.set("availability", availability);
     pendingItems = getItems(`/item?${query}`, session);
     updateControls();
     inventoryStatus.textContent = "Carregando itens…";
@@ -100,14 +104,14 @@ async function loadPage(requestedPage, requestedSearch) {
     try {
         const items = await pendingItems;
         if (session !== tokens) return;
-        if (items.length === 0 && requestedPage > page && requestedSearch === search) {
+        if (items.length === 0 && requestedPage > page && !filterChanged) {
             hasNext = false;
             inventoryStatus.textContent = "Você chegou ao fim da lista.";
             return;
         }
 
         page = requestedPage;
-        search = requestedSearch;
+        filters = requestedFilters;
         hasNext = items.length === pageSize;
         rows.replaceChildren(
             ...items.map((item) => {
@@ -139,7 +143,7 @@ async function loadPage(requestedPage, requestedSearch) {
             showLogin("Sua sessão expirou. Entre novamente.");
             return;
         }
-        if (requestedSearch !== search) {
+        if (filterChanged) {
             tableRegion.hidden = true;
             pagination.hidden = true;
         }
@@ -164,7 +168,7 @@ loginForm.addEventListener("submit", async (event) => {
         inventory.hidden = false;
         logout.hidden = false;
         inventoryTitle.focus();
-        void loadPage(1, "");
+        void loadPage(1, filters);
     } catch (error) {
         loginStatus.textContent = error.message;
     } finally {
@@ -174,10 +178,10 @@ loginForm.addEventListener("submit", async (event) => {
 
 searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    void loadPage(1, searchField.value.trim());
+    void loadPage(1, { search: searchField.value.trim(), availability: availabilityField.value });
 });
-previous.addEventListener("click", () => void loadPage(page - 1, search));
-next.addEventListener("click", () => void loadPage(page + 1, search));
+previous.addEventListener("click", () => void loadPage(page - 1, filters));
+next.addEventListener("click", () => void loadPage(page + 1, filters));
 
 logout.addEventListener("click", async () => {
     const session = tokens;

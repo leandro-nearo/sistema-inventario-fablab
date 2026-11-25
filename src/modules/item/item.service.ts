@@ -1,6 +1,7 @@
 import type {
     CreateItemDTO,
     ItemDTO,
+    ItemListOptions,
     ListByCategoryDTO,
     ListByLocationDTO,
     UpdateItemDTO,
@@ -37,7 +38,7 @@ export class ItemService {
         return this.itemRepository.create(normalizedData);
     }
 
-    async list(options: Pagination & { search?: string }): Promise<ItemDTO[]> {
+    async list(options: ItemListOptions): Promise<ItemDTO[]> {
         return this.itemRepository.list(options);
     }
 

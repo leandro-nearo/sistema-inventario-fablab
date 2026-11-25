@@ -206,6 +206,40 @@ databaseSuite("inventory API integration", () => {
         }
     });
 
+    it("filters items by available quantity", async () => {
+        const authorization = { Authorization: `Bearer ${await accessToken()}` };
+        await prisma.item.createMany({
+            data: [
+                { name: "Cabo USB", availableQuantity: 2, totalQuantity: 3, location: "Caixa A" },
+                { name: "Cabo HDMI", availableQuantity: 0, totalQuantity: 3, location: "Caixa A" },
+                { name: "Alicate", availableQuantity: 1, totalQuantity: 1, location: "Caixa B" },
+                { name: "Adaptador", availableQuantity: 0, totalQuantity: 0, location: "Caixa B" },
+            ],
+        });
+
+        const cases = [
+            [{ availability: "available", search: "cabo" }, ["Cabo USB"]],
+            [{ availability: "unavailable" }, ["Cabo HDMI", "Adaptador"]],
+            [{ availability: "unavailable", page: 2, pageSize: 1 }, ["Adaptador"]],
+            [{}, ["Cabo USB", "Cabo HDMI", "Alicate", "Adaptador"]],
+        ] as const;
+        for (const [query, names] of cases) {
+            const { body } = await request(app)
+                .get("/item")
+                .set(authorization)
+                .query(query)
+                .expect(200);
+            expect(body).toMatchObject(names.map((name) => ({ name })));
+        }
+
+        const invalid = await request(app)
+            .get("/item")
+            .set(authorization)
+            .query({ availability: "unknown" })
+            .expect(400);
+        expect(invalid.body.error.code).toBe("VALIDATION_ERROR");
+    });
+
     it.each(["client@example.com", "CLIENT@EXAMPLE.COM"])(
         "returns the email conflict when %s is already registered",
         async (email) => {

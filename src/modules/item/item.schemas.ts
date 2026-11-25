@@ -64,6 +64,9 @@ export const itemListQuerySchema = z
     .object({
         ...paginationFields,
         search: z.string().trim().max(100).optional(),
+        availability: z
+            .enum(["available", "unavailable"], { error: "Disponibilidade inválida." })
+            .optional(),
     })
     .strict();
 

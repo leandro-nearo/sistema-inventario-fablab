@@ -23,6 +23,7 @@ class ItemController {
         const items = await itemService.list({
             ...paginationFrom(query),
             ...(query.search ? { search: query.search } : {}),
+            ...(query.availability ? { availability: query.availability } : {}),
         });
         return res.status(200).json(items);
     }

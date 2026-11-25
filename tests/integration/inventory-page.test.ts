@@ -10,7 +10,8 @@ describe("inventory page", () => {
             .expect(200)
             .expect("Content-Type", /text\/html/)
             .expect("Content-Security-Policy", /script-src 'self'/)
-            .expect(/Estoque de itens/);
+            .expect(/Estoque de itens/)
+            .expect(/<label for="availability">Disponibilidade<\/label>/);
         expect(page.headers["content-security-policy"]).not.toContain("upgrade-insecure-requests");
         await request(app)
             .get("/inventario/inventory.css")

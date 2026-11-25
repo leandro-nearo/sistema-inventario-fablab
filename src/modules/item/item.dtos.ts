@@ -1,3 +1,5 @@
+import type { Pagination } from "@src/shared/validation/fields.js";
+
 export type ItemDTO = {
     id: number;
     name: string;
@@ -22,6 +24,11 @@ export type UpdateItemDTO = {
     totalQuantity?: number;
     location?: string;
     adjustmentReason?: string;
+};
+
+export type ItemListOptions = Pagination & {
+    search?: string;
+    availability?: "available" | "unavailable";
 };
 
 export type ListByCategoryDTO = {

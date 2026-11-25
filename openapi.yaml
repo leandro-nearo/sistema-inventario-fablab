@@ -352,6 +352,12 @@ paths:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
         - $ref: "#/components/parameters/Search"
+        - name: availability
+          in: query
+          description: Use `available` para saldo disponível maior que zero ou `unavailable` para saldo disponível zero. Omita para listar todos os itens.
+          schema:
+            type: string
+            enum: [available, unavailable]
       responses:
         "200":
           description: Itens
@@ -361,6 +367,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Item"
+        "400":
+          $ref: "#/components/responses/BadRequest"
     post:
       tags: [Items]
       summary: Cria um item
