@@ -73,6 +73,9 @@
         "node": "^20.19 || ^22.12 || >=24.0"
     },
     "overrides": {
+        "@prisma/config": {
+            "effect": "^3.22.1"
+        },
         "deepmerge-ts": "^8.0.2",
         "mysql2": "^3.24.3"
     }
