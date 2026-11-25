@@ -23,6 +23,7 @@ const previous = document.querySelector("#previous");
 const next = document.querySelector("#next");
 const pageLabel = document.querySelector("#page");
 const createItem = document.querySelector("#create-item");
+const openOverdueLoans = document.querySelector("#open-overdue-loans");
 const itemDialog = document.querySelector("#item-dialog");
 const itemDialogTitle = document.querySelector("#item-dialog-title");
 const itemForm = document.querySelector("#item-form");
@@ -120,6 +121,7 @@ function updateControls() {
         previous,
         next,
         createItem,
+        openOverdueLoans,
         ...rows.querySelectorAll(".edit-item"),
     ]) {
         button.setAttribute("aria-disabled", String(loading || button.disabled));
@@ -166,6 +168,7 @@ function showLogin(message, preserveDraft = false) {
     page = 1;
     filters = defaultFilters;
     hasNext = false;
+    itemListRefreshPage = null;
     searchForm.reset();
     loanRegistration.close();
     itemRecords.close();
@@ -220,8 +223,13 @@ async function fetchItemRecords(kind, id, { page, pageSize, loanStatus, signal }
     const query = new URLSearchParams({ page, pageSize });
     if (!adjustments) {
         query.set("status", loanStatus);
-        query.set("itemId", id);
-        query.set("include", "client");
+        if (id === undefined) {
+            query.set("include", "client,item");
+            query.set("order", "due");
+        } else {
+            query.set("itemId", id);
+            query.set("include", "client");
+        }
     }
     const path = adjustments ? `/item/${id}/adjustments` : "/loan";
     try {
@@ -498,6 +506,11 @@ function selectItem(item) {
 }
 
 createItem.addEventListener("click", () => selectItem(null));
+openOverdueLoans.addEventListener("click", () => {
+    if (tokens && !pendingRequest && !itemDialog.open) {
+        itemRecords.open(null, "loans", openOverdueLoans);
+    }
+});
 
 function openLoanDialog() {
     if (editingItem && tokens && !pendingRequest && itemDialog.open) {
@@ -531,6 +544,13 @@ itemDialog.addEventListener("close", () => {
         itemListRefreshPage = null;
         void loadPage(refreshPage, filters);
     }
+});
+
+recordsDialog.addEventListener("close", () => {
+    if (recordsDialog.open || itemDialog.open || itemListRefreshPage === null || !tokens) return;
+    const refreshPage = itemListRefreshPage;
+    itemListRefreshPage = null;
+    void loadPage(refreshPage, filters);
 });
 
 async function refreshItemQuantity(path, session) {

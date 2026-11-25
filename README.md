@@ -48,6 +48,8 @@ Abra **Empréstimos ativos** na edição do item para consultar as unidades empr
 
 No filtro **Situação dos empréstimos**, selecione **Atrasados** para ver apenas os empréstimos ativos cujo prazo de devolução já passou.
 
+Na tela principal do estoque, **Empréstimos atrasados** reúne os empréstimos vencidos de todos os itens, do prazo mais antigo ao mais recente.
+
 Use **Registrar devolução** para devolver todas as unidades de um empréstimo. O estoque reflete a devolução ao voltar à lista de itens.
 
 Administradores podem abrir **Histórico de ajustes** na edição do item para consultar quantidades, motivos, datas e contas responsáveis.

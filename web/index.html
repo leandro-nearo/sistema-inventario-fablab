@@ -29,7 +29,10 @@
             <section id="inventory" aria-labelledby="inventory-title" hidden>
                 <div class="inventory-heading">
                     <h1 id="inventory-title" tabindex="-1">Estoque de itens</h1>
-                    <button id="create-item" type="button" aria-haspopup="dialog">Cadastrar item</button>
+                    <div class="dialog-actions">
+                        <button id="open-overdue-loans" class="secondary" type="button" aria-haspopup="dialog">Empréstimos atrasados</button>
+                        <button id="create-item" type="button" aria-haspopup="dialog">Cadastrar item</button>
+                    </div>
                 </div>
                 <p id="item-result" role="status"></p>
                 <div class="panel">

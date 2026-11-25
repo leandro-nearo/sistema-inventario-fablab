@@ -63,7 +63,8 @@ function renderAdjustment(adjustment) {
 function renderLoan(loan, confirmReturn) {
     const entry = document.createElement("li");
     const identifier = document.createElement("strong");
-    identifier.textContent = `Empréstimo #${loan.id}`;
+    const loanLabel = `Empréstimo #${loan.id}`;
+    identifier.textContent = loan.item ? `${loan.item.name} · ${loanLabel}` : loanLabel;
     const details = document.createElement("p");
     const clientId = `Cliente #${loan.clientId}`;
     const client = loan.client?.name ? `${loan.client.name} (${clientId})` : clientId;
@@ -119,13 +120,14 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
         if (!active || loading || returning) return;
         const { item, kind } = active;
         const view = views[kind];
-        const loanStatus = kind === "loans" ? loanStatusField.value : null;
+        let loanStatus = null;
+        if (kind === "loans") loanStatus = item ? loanStatusField.value : "overdue";
         const controller = new AbortController();
         loading = controller;
         updateControls();
         status.textContent = view.loading;
         try {
-            const records = await fetchRecords(kind, item.id, {
+            const records = await fetchRecords(kind, item?.id, {
                 page: requestedPage,
                 pageSize,
                 loanStatus,
@@ -204,7 +206,7 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
     previous.addEventListener("click", () => void loadPage(page - 1));
     next.addEventListener("click", () => void loadPage(page + 1));
     loanStatusField.addEventListener("change", () => {
-        if (returning || active?.kind !== "loans" || !dialog.open) return;
+        if (returning || active?.kind !== "loans" || !active.item || !dialog.open) return;
         loading?.abort();
         loading = null;
         clearEntries();
@@ -230,12 +232,18 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
             clearRecords();
             active = { item, kind, opener };
             const view = views[kind];
-            title.textContent = view.title;
-            loanFilters.hidden = kind !== "loans";
+            title.textContent = item ? view.title : "Empréstimos atrasados";
+            closeButton.textContent = item ? "Voltar ao item" : "Voltar ao estoque";
+            loanFilters.hidden = kind !== "loans" || !item;
             region.setAttribute("aria-label", view.region);
-            pagination.setAttribute("aria-label", view.pagination);
-            name.textContent = item.name;
+            pagination.setAttribute(
+                "aria-label",
+                item ? view.pagination : "Páginas dos empréstimos atrasados",
+            );
+            name.hidden = !item;
+            name.textContent = item?.name ?? "";
             page = 1;
+            opener.focus({ preventScroll: true });
             dialog.showModal();
             void loadPage(1);
         },
