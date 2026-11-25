@@ -99,6 +99,8 @@ Use `order=desc` para listar os itens do maior para o menor ID. A API usa `order
 
 `status` aceita `all`, `active`, `returned`, `cancelled` e `overdue`. Definir `returnDate` devolve o estoque; definir `returnDate: null` reabre o empréstimo se houver estoque. `DELETE` cancela e preserva o registro.
 
+Consultar, alterar ou cancelar um empréstimo inexistente retorna `404` com o código `LOAN_NOT_FOUND`.
+
 Datas aceitam `YYYY-MM-DD` ou data/hora ISO com fuso, por exemplo `2026-09-04T10:00:00-03:00`. `dueDate` e `returnDate` não podem anteceder `loanDate`.
 
 ## Modelos resumidos

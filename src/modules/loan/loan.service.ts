@@ -10,6 +10,10 @@ import {
 import { CreateLoanValidator } from "./input-validation/create-loan.validator.js";
 import { type LoanRepository, PrismaLoanRepository } from "./repositories/loan.repository.js";
 
+function loanNotFound() {
+    return new AppError(MESSAGES.LOAN.NOT_FOUND.BY_ID, 404, "LOAN_NOT_FOUND");
+}
+
 export class LoanService {
     constructor(private readonly loanRepository: LoanRepository = new PrismaLoanRepository()) {}
 
@@ -56,7 +60,7 @@ export class LoanService {
 
     async getById(id: number): Promise<LoanDTO> {
         const loan = await this.loanRepository.findById(id);
-        if (!loan) throw new AppError(MESSAGES.LOAN.NOT_FOUND.BY_ID, 404, "LOAN_NOT_FOUND");
+        if (!loan) throw loanNotFound();
         return loan;
     }
 
@@ -72,9 +76,7 @@ export class LoanService {
         try {
             const loan = await this.loanRepository.updateWithStock(id, data, actorId);
 
-            if (!loan) {
-                throw new AppError(MESSAGES.LOAN.NOT_FOUND.BY_ID, 404);
-            }
+            if (!loan) throw loanNotFound();
 
             return loan;
         } catch (error) {
@@ -107,9 +109,7 @@ export class LoanService {
     async cancelById(id: number, actorId: number): Promise<void> {
         const loan = await this.loanRepository.cancelWithStock(id, actorId);
 
-        if (!loan) {
-            throw new AppError(MESSAGES.LOAN.NOT_FOUND.BY_ID, 404);
-        }
+        if (!loan) throw loanNotFound();
     }
 }
 

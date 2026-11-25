@@ -415,6 +415,25 @@ databaseSuite("inventory API integration", () => {
         }
     });
 
+    it("returns the same error for all actions on a missing loan", async () => {
+        const authorization = { Authorization: `Bearer ${await accessToken()}` };
+        const path = "/loan/1";
+        const expected = {
+            error: {
+                code: "LOAN_NOT_FOUND",
+                message: "Não foi possível encontrar um empréstimo com esse ID.",
+            },
+        };
+
+        await request(app).get(path).set(authorization).expect(404, expected);
+        await request(app)
+            .patch(path)
+            .set(authorization)
+            .send({ dueDate: "2026-09-20" })
+            .expect(404, expected);
+        await request(app).delete(path).set(authorization).expect(404, expected);
+    });
+
     it("cancels loans without deleting their audit history", async () => {
         const token = await accessToken();
         const authorization = { Authorization: `Bearer ${token}` };
