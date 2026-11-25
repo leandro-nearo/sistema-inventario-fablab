@@ -395,6 +395,57 @@ databaseSuite("inventory API integration", () => {
         expect(reopenedItem.availableQuantity).toBe(1);
     });
 
+    it("returns stock once and preserves the first return record", async () => {
+        const admin = await prisma.user.findUniqueOrThrow({
+            where: { email: "admin@example.com" },
+        });
+        const operator = await prisma.user.create({
+            data: {
+                username: "operator",
+                email: "operator@example.com",
+                passwordHash: await Bcrypt.hashPassword("operator-test-password"),
+                role: "OPERATOR",
+            },
+        });
+        const client = await prisma.client.create({
+            data: { name: "Cliente", email: "client@example.com" },
+        });
+        const item = await prisma.item.create({
+            data: { name: "Arduino", location: "A1", totalQuantity: 3, availableQuantity: 1 },
+        });
+        const loan = await prisma.loan.create({
+            data: {
+                clientId: client.id,
+                itemId: item.id,
+                loanDate: new Date("2020-09-01T10:00:00Z"),
+                dueDate: new Date("2020-09-30T10:00:00Z"),
+                loanQuantity: 2,
+            },
+        });
+        const path = `/loan/${loan.id}/return`;
+        const returnLoan = (userId: number) => {
+            const { accessToken } = TokenService.generate({ userId: String(userId) });
+            return request(app)
+                .post(path)
+                .set("Authorization", `Bearer ${accessToken}`)
+                .expect(200);
+        };
+
+        await request(app).post(path).expect(401);
+        const startedAt = Date.now();
+        const [first, second] = await Promise.all([returnLoan(operator.id), returnLoan(admin.id)]);
+        expect(first.body.id).toBe(loan.id);
+        expect(first.body).toEqual(second.body);
+        expect([operator.id, admin.id]).toContain(first.body.returnedById);
+        const returnedAt = Date.parse(first.body.returnDate);
+        expect(returnedAt).toBeGreaterThanOrEqual(startedAt);
+        expect(returnedAt).toBeLessThanOrEqual(Date.now());
+        expect((await returnLoan(operator.id)).body).toEqual(first.body);
+        await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
+            availableQuantity: 3,
+        });
+    });
+
     it("rejects a stock adjustment based on an old total quantity", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const item = await prisma.item.create({ data: { name: "Arduino", location: "A1" } });
@@ -493,6 +544,7 @@ databaseSuite("inventory API integration", () => {
             .send({ dueDate: "2026-09-20" })
             .expect(404, expected);
         await request(app).delete(path).set(authorization).expect(404, expected);
+        await request(app).post(`${path}/return`).set(authorization).expect(404, expected);
     });
 
     it("cancels loans without deleting their audit history", async () => {
@@ -517,9 +569,15 @@ databaseSuite("inventory API integration", () => {
         const response = await request(app).delete(`/loan/${loan.body.id}`).set(authorization);
         expect(response.status).toBe(204);
 
+        const rejected = await request(app)
+            .post(`/loan/${loan.body.id}/return`)
+            .set(authorization)
+            .expect(409);
+        expect(rejected.body.error.code).toBe("LOAN_CANCELLED");
         const storedLoan = await prisma.loan.findUniqueOrThrow({ where: { id: loan.body.id } });
         const storedItem = await prisma.item.findUniqueOrThrow({ where: { id: item.body.id } });
         expect(storedLoan.cancelledAt).not.toBeNull();
+        expect(storedLoan.returnDate).toBeNull();
         expect(storedItem.availableQuantity).toBe(2);
     });
 

@@ -33,6 +33,13 @@ class LoanController {
         return res.json(loan);
     }
 
+    async returnById(req: Request, res: Response) {
+        const id = Number(req.params.id);
+        IdValidator.validate(id);
+        const loan = await loanService.returnById(id, Number(req.userId));
+        return res.json(loan);
+    }
+
     async updateById(req: Request, res: Response) {
         const loanId = Number(req.params.id);
         IdValidator.validate(loanId);

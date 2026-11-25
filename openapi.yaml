@@ -665,6 +665,32 @@ paths:
           description: Empréstimo cancelado
         "404":
           $ref: "#/components/responses/NotFound"
+  /loan/{id}/return:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Loans]
+      summary: Registra a devolução de um empréstimo
+      description: |
+        Usa a data e hora do servidor. Uma nova chamada para um empréstimo já devolvido preserva a data e a conta responsável.
+        Uma data de empréstimo futura impede a devolução e retorna INVALID_LOAN_DATES.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Empréstimo devolvido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
 components:
   securitySchemes:
     bearerAuth:

@@ -99,6 +99,7 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 | `POST` | `/loan` | `ADMIN`, `OPERATOR` | `clientId`, `itemId`, `loanDate`, `dueDate`, `loanQuantity`, `returnDate?` | `201 Loan` |
 | `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?`, `include?` | `200 LoanListEntry[]` |
 | `GET` | `/loan/:id` | Autenticado | — | `200 Loan` |
+| `POST` | `/loan/:id/return` | `ADMIN`, `OPERATOR` | — | `200 Loan` |
 | `PATCH` | `/loan/:id` | `ADMIN`, `OPERATOR` | `loanDate?`, `dueDate?`, `returnDate?` | `200 Loan` |
 | `DELETE` | `/loan/:id` | `ADMIN` | — | `204` |
 
@@ -108,7 +109,9 @@ Use `GET /loan?itemId=42&status=active` para listar empréstimos ativos do item 
 
 Com `include=client`, cada empréstimo da lista também contém `client: { name }`. O campo `clientId` identifica o cliente em ambas as consultas.
 
-Consultar, alterar ou cancelar um empréstimo inexistente retorna `404` com o código `LOAN_NOT_FOUND`.
+`POST /loan/:id/return` registra a devolução com a data e hora do servidor. Se o empréstimo já foi devolvido, retorna o registro com a data e a conta responsável originais. Um empréstimo cancelado retorna `409 LOAN_CANCELLED`. Se a data do empréstimo ainda estiver no futuro, retorna `400 INVALID_LOAN_DATES`.
+
+Consultar, alterar, devolver ou cancelar um empréstimo inexistente retorna `404` com o código `LOAN_NOT_FOUND`.
 
 Datas aceitam `YYYY-MM-DD` ou data/hora ISO com fuso, por exemplo `2026-09-04T10:00:00-03:00`. `dueDate` e `returnDate` não podem anteceder `loanDate`.
 

@@ -30,6 +30,7 @@ export interface LoanRepository {
     list(options: LoanListOptions): Promise<LoanListEntryDTO[]>;
     findById(id: number): Promise<Loan | null>;
     updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null>;
+    returnWithStock(id: number, actorId: number): Promise<Loan | null>;
     cancelWithStock(id: number, actorId: number): Promise<Loan | null>;
 }
 
@@ -97,7 +98,19 @@ export class PrismaLoanRepository implements LoanRepository {
         return prisma.loan.findUnique({ where: { id } });
     }
 
-    async updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null> {
+    updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null> {
+        return this.changeWithStock(id, actorId, data);
+    }
+
+    returnWithStock(id: number, actorId: number): Promise<Loan | null> {
+        return this.changeWithStock(id, actorId, "return");
+    }
+
+    private changeWithStock(
+        id: number,
+        actorId: number,
+        change: LoanUpdateData | "return",
+    ): Promise<Loan | null> {
         return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             const rows = await tx.$queryRaw<Loan[]>`
                 SELECT * FROM "Loan" WHERE "id" = ${id} FOR UPDATE
@@ -109,7 +122,9 @@ export class PrismaLoanRepository implements LoanRepository {
             }
 
             if (existing.cancelledAt !== null) throw new LoanCancelledError();
+            if (change === "return" && existing.returnDate !== null) return existing;
 
+            const data = change === "return" ? { returnDate: new Date() } : change;
             const loanDate = data.loanDate ?? existing.loanDate;
             const dueDate = data.dueDate ?? existing.dueDate;
             const returnDate =

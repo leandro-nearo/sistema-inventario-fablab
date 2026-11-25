@@ -13,7 +13,11 @@ import {
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
 import { CreateLoanValidator } from "./input-validation/create-loan.validator.js";
-import { type LoanRepository, PrismaLoanRepository } from "./repositories/loan.repository.js";
+import {
+    type LoanRepository,
+    type LoanUpdateData,
+    PrismaLoanRepository,
+} from "./repositories/loan.repository.js";
 
 function loanNotFound() {
     return new AppError(MESSAGES.LOAN.NOT_FOUND.BY_ID, 404, "LOAN_NOT_FOUND");
@@ -65,17 +69,17 @@ export class LoanService {
         return loan;
     }
 
-    async updateById(
-        id: number,
-        data: {
-            loanDate?: Date;
-            dueDate?: Date;
-            returnDate?: Date | null;
-        },
-        actorId: number,
-    ): Promise<LoanDTO> {
+    updateById(id: number, data: LoanUpdateData, actorId: number): Promise<LoanDTO> {
+        return this.changeById(() => this.loanRepository.updateWithStock(id, data, actorId));
+    }
+
+    returnById(id: number, actorId: number): Promise<LoanDTO> {
+        return this.changeById(() => this.loanRepository.returnWithStock(id, actorId));
+    }
+
+    private async changeById(change: () => Promise<LoanDTO | null>): Promise<LoanDTO> {
         try {
-            const loan = await this.loanRepository.updateWithStock(id, data, actorId);
+            const loan = await change();
 
             if (!loan) throw loanNotFound();
 
