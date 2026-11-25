@@ -569,6 +569,12 @@ paths:
             type: integer
             minimum: 1
             maximum: 2147483647
+        - name: include
+          in: query
+          description: Inclui o nome do cliente em cada empréstimo.
+          schema:
+            type: string
+            enum: [client]
       responses:
         "200":
           description: Empréstimos
@@ -577,7 +583,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Loan"
+                  $ref: "#/components/schemas/LoanListEntry"
         "400":
           $ref: "#/components/responses/BadRequest"
     post:
@@ -1079,3 +1085,16 @@ components:
         updatedAt:
           type: string
           format: date-time
+    LoanListEntry:
+      allOf:
+        - $ref: "#/components/schemas/Loan"
+        - type: object
+          properties:
+            client:
+              description: Presente quando a consulta inclui o cliente.
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name:
+                  type: string

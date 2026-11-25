@@ -6,7 +6,7 @@ import {
     LoanDateOrderError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
-import type { LoanListOptions } from "../loan.dtos.js";
+import type { LoanListEntryDTO, LoanListOptions } from "../loan.dtos.js";
 
 export type LoanCreateData = {
     clientId: number;
@@ -27,7 +27,7 @@ export type LoanUpdateData = {
 
 export interface LoanRepository {
     createWithStockReservation(data: LoanCreateData): Promise<Loan>;
-    list(options: LoanListOptions): Promise<Loan[]>;
+    list(options: LoanListOptions): Promise<LoanListEntryDTO[]>;
     findById(id: number): Promise<Loan | null>;
     updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null>;
     cancelWithStock(id: number, actorId: number): Promise<Loan | null>;
@@ -71,7 +71,7 @@ export class PrismaLoanRepository implements LoanRepository {
         });
     }
 
-    list({ skip, take, status, itemId }: LoanListOptions) {
+    list({ skip, take, status, itemId, includeClient }: LoanListOptions) {
         const where: Prisma.LoanWhereInput =
             status === "active"
                 ? { returnDate: null, cancelledAt: null }
@@ -86,6 +86,7 @@ export class PrismaLoanRepository implements LoanRepository {
 
         return prisma.loan.findMany({
             where,
+            include: { client: includeClient ? { select: { name: true } } : false },
             orderBy: [{ loanDate: "desc" }, { id: "desc" }],
             skip,
             take,

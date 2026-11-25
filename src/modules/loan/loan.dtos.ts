@@ -16,9 +16,14 @@ export type LoanDTO = {
     updatedAt: Date;
 };
 
+export type LoanListEntryDTO = LoanDTO & {
+    client?: { name: string };
+};
+
 export type LoanListOptions = Pagination & {
     status: "all" | "active" | "returned" | "cancelled" | "overdue";
     itemId?: number;
+    includeClient?: boolean;
 };
 
 export type CreateLoanDTO = {

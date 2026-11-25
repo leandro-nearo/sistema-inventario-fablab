@@ -97,7 +97,7 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 | Método | Rota | Papel | Corpo/consulta | Resposta |
 |---|---|---|---|---|
 | `POST` | `/loan` | `ADMIN`, `OPERATOR` | `clientId`, `itemId`, `loanDate`, `dueDate`, `loanQuantity`, `returnDate?` | `201 Loan` |
-| `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?` | `200 Loan[]` |
+| `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?`, `include?` | `200 LoanListEntry[]` |
 | `GET` | `/loan/:id` | Autenticado | — | `200 Loan` |
 | `PATCH` | `/loan/:id` | `ADMIN`, `OPERATOR` | `loanDate?`, `dueDate?`, `returnDate?` | `200 Loan` |
 | `DELETE` | `/loan/:id` | `ADMIN` | — | `204` |
@@ -105,6 +105,8 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 `status` aceita `all`, `active`, `returned`, `cancelled` e `overdue`. Definir `returnDate` devolve o estoque; definir `returnDate: null` reabre o empréstimo se houver estoque. `DELETE` cancela e preserva o registro.
 
 Use `GET /loan?itemId=42&status=active` para listar empréstimos ativos do item 42. A consulta retorna uma lista vazia quando nenhum empréstimo corresponde aos filtros.
+
+Com `include=client`, cada empréstimo da lista também contém `client: { name }`. O campo `clientId` identifica o cliente em ambas as consultas.
 
 Consultar, alterar ou cancelar um empréstimo inexistente retorna `404` com o código `LOAN_NOT_FOUND`.
 
@@ -136,6 +138,8 @@ type Loan = {
   createdById: number | null; returnedById: number | null; cancelledById: number | null;
   createdAt: string; updatedAt: string;
 };
+
+type LoanListEntry = Loan & { client?: { name: string } };
 ```
 
 ## Saúde

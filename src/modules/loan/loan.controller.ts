@@ -21,6 +21,7 @@ class LoanController {
             ...paginationFrom(query),
             status: query.status,
             ...(query.itemId !== undefined ? { itemId: query.itemId } : {}),
+            includeClient: query.include === "client",
         });
         return res.json(loans);
     }

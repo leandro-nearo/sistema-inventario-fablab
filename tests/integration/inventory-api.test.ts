@@ -571,6 +571,51 @@ databaseSuite("inventory API integration", () => {
         }
     });
 
+    it("includes only the client name on request", async () => {
+        const operator = await prisma.user.create({
+            data: {
+                username: "operator",
+                email: "operator@example.com",
+                passwordHash: await Bcrypt.hashPassword("a-secure-test-password"),
+                role: "OPERATOR",
+            },
+        });
+        const { accessToken } = TokenService.generate({ userId: String(operator.id) });
+        const authorization = { Authorization: `Bearer ${accessToken}` };
+        const client = await prisma.client.create({
+            data: {
+                name: "Oficina do Lab",
+                email: "client@example.com",
+                phone: "11999998888",
+            },
+        });
+        const item = await prisma.item.create({
+            data: { name: "Arduino", location: "A1", totalQuantity: 1, availableQuantity: 0 },
+        });
+        const loan = await prisma.loan.create({
+            data: {
+                clientId: client.id,
+                itemId: item.id,
+                loanDate: new Date("2026-09-01"),
+                dueDate: new Date("2026-09-30"),
+            },
+        });
+        const query = { itemId: item.id, status: "active" };
+        const list = () => request(app).get("/loan").set(authorization);
+        const standard = await list().query(query).expect(200);
+        expect(standard.body).toMatchObject([{ id: loan.id, clientId: client.id }]);
+        expect(standard.body[0]).not.toHaveProperty("client");
+
+        const expanded = await list()
+            .query({ ...query, include: "client" })
+            .expect(200);
+        expect(expanded.body).toEqual([
+            { ...standard.body[0], client: { name: "Oficina do Lab" } },
+        ]);
+        await list().query({ include: "contact" }).expect(400);
+        await request(app).get("/loan").query({ include: "client" }).expect(401);
+    });
+
     it("uses the ID to order history pages when dates are equal", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const client = await prisma.client.create({

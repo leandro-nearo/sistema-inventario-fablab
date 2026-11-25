@@ -36,5 +36,6 @@ export const loanListQuerySchema = z
             .transform(Number)
             .pipe(idSchema)
             .optional(),
+        include: z.literal("client").optional(),
     })
     .strict();
