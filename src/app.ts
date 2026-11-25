@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { errorHandler } from "@middlewares/errorHandler.js";
 import { authRouter } from "@modules/auth/auth.routes.js";
 import { clientRouter } from "@modules/client/client.routes.js";
@@ -22,6 +23,11 @@ app.use(helmet());
 app.use(cors({ origin: env.corsOrigins }));
 app.use(express.json({ limit: env.jsonBodyLimit }));
 app.use("/health", healthRouter);
+app.use(
+    "/inventario",
+    helmet.contentSecurityPolicy({ directives: { upgradeInsecureRequests: null } }),
+    express.static(fileURLToPath(new URL("../web/", import.meta.url))),
+);
 app.use(apiRateLimiter);
 app.use("/user", userRouter);
 app.use("/item", itemRouter);

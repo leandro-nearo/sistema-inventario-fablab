@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Inventário FabLab</title>
+        <link rel="stylesheet" href="inventory.css" />
+        <script type="module" src="inventory.js"></script>
+    </head>
+    <body>
+        <header class="bar">
+            <div class="bar-content">
+                <span class="brand">Inventário FabLab</span>
+                <button id="logout" class="secondary" type="button" hidden>Sair</button>
+            </div>
+        </header>
+        <main>
+            <section id="login" class="panel login" aria-labelledby="login-title">
+                <h1 id="login-title">Entre na sua conta</h1>
+                <form id="login-form" method="post">
+                    <label for="email">E-mail</label>
+                    <input id="email" name="email" type="email" autocomplete="username" maxlength="254" required />
+                    <label for="password">Senha</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" required />
+                    <button id="login-button" type="submit">Entrar</button>
+                </form>
+                <p id="login-status" role="status"></p>
+            </section>
+            <section id="inventory" aria-labelledby="inventory-title" hidden>
+                <h1 id="inventory-title" tabindex="-1">Estoque de itens</h1>
+                <div class="panel">
+                    <search>
+                        <form id="search-form">
+                            <label for="search">Nome, categoria ou localização</label>
+                            <div class="search-controls">
+                                <input id="search" name="search" type="search" maxlength="100" />
+                                <button type="submit">Buscar</button>
+                            </div>
+                        </form>
+                    </search>
+                    <p id="inventory-status" role="status"></p>
+                    <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: A tabela precisa receber foco para permitir rolagem pelo teclado. -->
+                    <section id="table-region" class="table-region" aria-label="Tabela do estoque" tabindex="0" hidden>
+                        <p class="table-hint">Role a tabela para ver categoria e localização.</p>
+                        <table aria-label="Estoque de itens">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Item</th>
+                                    <th scope="col">Disponível</th>
+                                    <th scope="col">Total</th>
+                                    <th scope="col">Categoria</th>
+                                    <th scope="col">Localização</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items"></tbody>
+                        </table>
+                    </section>
+                    <nav id="pagination" class="pagination" aria-label="Páginas do estoque" hidden>
+                        <button id="previous" class="secondary" type="button" disabled>Anterior</button>
+                        <span id="page">Página 1</span>
+                        <button id="next" class="secondary" type="button" disabled>Próxima</button>
+                    </nav>
+                </div>
+            </section>
+        </main>
+        <noscript><p>Ative o JavaScript para consultar o estoque.</p></noscript>
+    </body>
+</html>

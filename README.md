@@ -38,7 +38,9 @@ npm run db:deploy
 npm run dev
 ```
 
-A API usa `http://localhost:3000` por padrão. Verifique:
+A API usa `http://localhost:3000` por padrão. Abra [a consulta de estoque](http://localhost:3000/inventario/) e entre com uma conta do FabLab para pesquisar itens e ver as quantidades disponíveis. Ao recarregar a página, entre novamente.
+
+Para verificar o servidor:
 
 ```bash
 curl http://localhost:3000/health/live
