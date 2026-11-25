@@ -33,5 +33,6 @@ export const clientListQuerySchema = z
     .object({
         ...paginationFields,
         search: searchSchema,
+        email: emailSchema.optional(),
     })
     .strict();

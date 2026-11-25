@@ -278,6 +278,13 @@ paths:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
         - $ref: "#/components/parameters/Search"
+        - name: email
+          in: query
+          description: Busca o e-mail completo, sem distinguir maiúsculas de minúsculas.
+          schema:
+            type: string
+            format: email
+            maxLength: 254
       responses:
         "200":
           description: Clientes
@@ -287,6 +294,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Client"
+        "400":
+          $ref: "#/components/responses/BadRequest"
     post:
       tags: [Clients]
       summary: Cria um cliente

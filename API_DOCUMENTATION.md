@@ -63,13 +63,15 @@ A senha deve ter 12 ou mais caracteres e no máximo 72 bytes. Alterá-la revoga 
 | Método | Rota | Papel | Corpo/consulta | Resposta |
 |---|---|---|---|---|
 | `POST` | `/client` | `ADMIN`, `OPERATOR` | `name`, `email`, `phone?` | `201 Client` |
-| `GET` | `/client` | Autenticado | `page`, `pageSize`, `search?` | `200 Client[]` |
+| `GET` | `/client` | Autenticado | `page`, `pageSize`, `search?`, `email?` | `200 Client[]` |
 | `GET` | `/client/:id` | Autenticado | — | `200 Client` |
 | `GET` | `/client/:id/loans` | Autenticado | paginação | `200 Client` com `loans` |
 | `PATCH` | `/client/:id` | `ADMIN`, `OPERATOR` | `name?`, `email?`, `phone?` | `200 Client` |
 | `DELETE` | `/client/:id` | `ADMIN` | — | `204` |
 
 `phone: null` remove o telefone. São aceitos de 8 a 15 dígitos; pontuação é removida. Clientes com histórico de empréstimos não podem ser apagados (`409`).
+
+Em `GET /client`, `email` compara o endereço completo sem distinguir maiúsculas de minúsculas. Quando a consulta também inclui `search`, o cliente deve atender aos dois filtros.
 
 ## Itens
 

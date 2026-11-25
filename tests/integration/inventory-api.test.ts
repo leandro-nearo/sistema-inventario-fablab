@@ -192,6 +192,28 @@ databaseSuite("inventory API integration", () => {
         expect(response.body.error.code).toBe("VALIDATION_ERROR");
     });
 
+    it("filters clients by a complete email address", async () => {
+        const user = await prisma.user.findUniqueOrThrow({
+            where: { email: "admin@example.com" },
+        });
+        const { accessToken } = TokenService.generate({ userId: String(user.id) });
+        const client = await prisma.client.create({
+            data: { name: "Oficina", email: "Lab_A@example.com" },
+        });
+        await prisma.client.createMany({
+            data: [
+                { name: "Outros", email: "labxa@example.com" },
+                { name: "Outros", email: "otherlab_a@example.com" },
+            ],
+        });
+        const list = () =>
+            request(app).get("/client").set("Authorization", `Bearer ${accessToken}`);
+        const response = await list().query({ email: "  LAB_A@EXAMPLE.COM  " }).expect(200);
+        expect(response.body).toMatchObject([{ id: client.id }]);
+        await list().query({ email: client.email, search: "Outros" }).expect(200, []);
+        await list().query({ email: "lab_a" }).expect(400);
+    });
+
     it("matches literal characters in searches and stock filters", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const item = await prisma.item.create({
