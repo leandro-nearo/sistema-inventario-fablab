@@ -163,6 +163,8 @@ docker run --rm -p 3000:3000 --env-file .env sistema-inventario-fablab
 
 Aplique `npm run db:deploy` como etapa única de implantação antes de iniciar novas réplicas. O processo responde a `SIGTERM`/`SIGINT`, fecha o servidor e desconecta o Prisma.
 
+Em bases com um histórico de empréstimos grande, aplique a migração `20261125000000_index_loan_history` em uma janela de manutenção. A criação dos índices bloqueia escritas na tabela `Loan` até o fim da migração.
+
 ## Testes de integração
 
 Use exclusivamente uma base descartável cujo nome contenha `test`:

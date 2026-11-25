@@ -115,7 +115,8 @@ model Loan {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([clientId])
+  @@index([loanDate, id])
+  @@index([clientId, loanDate, id])
   @@index([itemId])
   @@index([dueDate])
   @@index([returnDate])
