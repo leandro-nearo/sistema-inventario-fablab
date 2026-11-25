@@ -102,13 +102,13 @@ select {
 }
 
 #item-dialog,
-#adjustment-history {
+#item-records {
     box-sizing: border-box;
     width: min(28rem, calc(100% - 2rem));
     color: inherit;
 }
 
-#adjustment-history {
+#item-records {
     width: min(36rem, calc(100% - 2rem));
 }
 
@@ -116,42 +116,42 @@ select {
     margin: 0 0 1rem;
 }
 
-#adjustment-history h2 {
+#item-records h2 {
     margin: 0;
 }
 
 #item-dialog::backdrop,
-#adjustment-history::backdrop {
+#item-records::backdrop {
     background: #142c2b99;
 }
 
-#history-item {
+#records-item {
     margin: 0;
     font-weight: 650;
     overflow-wrap: anywhere;
 }
 
-#history-region {
+#records-region {
     max-height: 45vh;
     overflow: auto;
 }
 
-#history-entries {
+#records-entries {
     margin: 0;
     padding: 0;
     list-style: none;
 }
 
-#history-entries li {
+#records-entries li {
     padding: 0.5rem;
     overflow-wrap: anywhere;
 }
 
-#history-entries li + li {
+#records-entries li + li {
     border-top: 1px solid #dce5e2;
 }
 
-#history-entries p {
+#records-entries p {
     margin: 0.25rem 0;
 }
 

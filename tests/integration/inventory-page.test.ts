@@ -24,7 +24,7 @@ describe("inventory page", () => {
             .expect(200)
             .expect("Content-Type", /javascript/);
         await request(app)
-            .get("/inventario/adjustment-history.js")
+            .get("/inventario/item-records.js")
             .expect(200)
             .expect("Content-Type", /javascript/);
     });

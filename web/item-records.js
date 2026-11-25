@@ -1,36 +1,76 @@
-const dialog = document.querySelector("#adjustment-history");
-const closeButton = document.querySelector("#close-adjustment-history");
-const name = document.querySelector("#history-item");
-const status = document.querySelector("#history-status");
-const region = document.querySelector("#history-region");
-const entries = document.querySelector("#history-entries");
-const pagination = document.querySelector("#history-pagination");
-const previous = document.querySelector("#history-previous");
-const next = document.querySelector("#history-next");
-const pageLabel = document.querySelector("#history-page");
+const closeButton = document.querySelector("#close-item-records");
+const title = document.querySelector("#records-title");
+const name = document.querySelector("#records-item");
+const status = document.querySelector("#records-status");
+const region = document.querySelector("#records-region");
+const entries = document.querySelector("#records-entries");
+const pagination = document.querySelector("#records-pagination");
+const previous = document.querySelector("#records-previous");
+const next = document.querySelector("#records-next");
+const pageLabel = document.querySelector("#records-page");
 
 const pageSize = 10;
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
+const views = {
+    adjustments: {
+        title: "Histórico de ajustes",
+        region: "Registros de ajuste",
+        pagination: "Páginas do histórico de ajustes",
+        loading: "Carregando ajustes…",
+        empty: "Nenhum ajuste registrado.",
+        end: "Você chegou ao fim do histórico.",
+        singular: "ajuste",
+        plural: "ajustes",
+        render: renderAdjustment,
+    },
+    loans: {
+        title: "Empréstimos ativos",
+        region: "Registros de empréstimo",
+        pagination: "Páginas dos empréstimos ativos",
+        loading: "Carregando empréstimos…",
+        empty: "Nenhum empréstimo ativo.",
+        end: "Você chegou ao fim da lista.",
+        singular: "empréstimo",
+        plural: "empréstimos",
+        render: renderLoan,
+    },
+};
+
+function renderDate(value) {
+    const date = document.createElement("time");
+    date.dateTime = value;
+    date.textContent = dateFormat.format(new Date(value));
+    return date;
+}
 
 function renderAdjustment(adjustment) {
     const entry = document.createElement("li");
     const reason = document.createElement("strong");
     reason.textContent = adjustment.reason;
     const details = document.createElement("p");
-    const date = document.createElement("time");
-    date.dateTime = adjustment.createdAt;
-    date.textContent = dateFormat.format(new Date(adjustment.createdAt));
     const actor =
         adjustment.actorId === null ? "Responsável indisponível" : `Conta #${adjustment.actorId}`;
-    details.append(date, ` · ${actor}`);
+    details.append(renderDate(adjustment.createdAt), ` · ${actor}`);
     const quantities = document.createElement("p");
     quantities.textContent = `Total ${adjustment.previousTotal} → ${adjustment.newTotal} · Disponível ${adjustment.previousAvailable} → ${adjustment.newAvailable}`;
     entry.append(reason, details, quantities);
     return entry;
 }
 
-export function createAdjustmentHistory(fetchAdjustments) {
-    let activeItem = null;
+function renderLoan(loan) {
+    const entry = document.createElement("li");
+    const identifier = document.createElement("strong");
+    identifier.textContent = `Empréstimo #${loan.id}`;
+    const details = document.createElement("p");
+    details.textContent = `Cliente #${loan.clientId} · ${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
+    const due = document.createElement("p");
+    due.append("Prazo de devolução ", renderDate(loan.dueDate));
+    entry.append(identifier, details, due);
+    return entry;
+}
+
+export function createItemRecords(dialog, fetchRecords, fallbackFocus) {
+    let active = null;
     let page = 1;
     let hasNext = false;
     let loading = null;
@@ -62,14 +102,16 @@ export function createAdjustmentHistory(fetchAdjustments) {
     }
 
     async function loadPage(requestedPage) {
-        const item = activeItem;
-        if (!item || loading) return;
+        if (!active || loading) return;
+        const { item, kind } = active;
+        const view = views[kind];
         const controller = new AbortController();
         loading = controller;
         updateControls();
-        status.textContent = "Carregando ajustes…";
+        status.textContent = view.loading;
         try {
-            const records = await fetchAdjustments(
+            const records = await fetchRecords(
+                kind,
                 item.id,
                 requestedPage,
                 pageSize,
@@ -78,18 +120,19 @@ export function createAdjustmentHistory(fetchAdjustments) {
             if (loading !== controller || !dialog.open) return;
             if (records.length === 0 && requestedPage > page) {
                 hasNext = false;
-                status.textContent = "Você chegou ao fim do histórico.";
+                status.textContent = view.end;
                 return;
             }
             page = requestedPage;
             hasNext = records.length === pageSize;
-            entries.replaceChildren(...records.map(renderAdjustment));
+            entries.replaceChildren(...records.map(view.render));
             region.hidden = records.length === 0;
             region.scrollTop = 0;
             pagination.hidden = page === 1 && !hasNext;
+            const emptyMessage = page === 1 ? view.empty : "Nenhum registro nesta página.";
             status.textContent = records.length
-                ? `${records.length} ${records.length === 1 ? "ajuste nesta página" : "ajustes nesta página"}.`
-                : "Nenhum ajuste registrado.";
+                ? `${records.length} ${records.length === 1 ? view.singular : view.plural} nesta página.`
+                : emptyMessage;
         } catch (error) {
             if (loading !== controller || !dialog.open) return;
             clearEntries();
@@ -102,10 +145,10 @@ export function createAdjustmentHistory(fetchAdjustments) {
         }
     }
 
-    function clearHistory() {
+    function clearRecords() {
         loading?.abort();
         loading = null;
-        activeItem = null;
+        active = null;
         name.textContent = "";
         status.textContent = "";
         clearEntries();
@@ -114,14 +157,20 @@ export function createAdjustmentHistory(fetchAdjustments) {
     previous.addEventListener("click", () => void loadPage(page - 1));
     next.addEventListener("click", () => void loadPage(page + 1));
     dialog.addEventListener("close", () => {
-        if (!dialog.open) clearHistory();
+        if (dialog.open) return;
+        if (active?.opener.hidden) fallbackFocus.focus();
+        clearRecords();
     });
 
     return {
-        open(item) {
+        open(item, kind, opener) {
             if (dialog.open) return;
-            clearHistory();
-            activeItem = item;
+            clearRecords();
+            active = { item, kind, opener };
+            const view = views[kind];
+            title.textContent = view.title;
+            region.setAttribute("aria-label", view.region);
+            pagination.setAttribute("aria-label", view.pagination);
             name.textContent = item.name;
             page = 1;
             dialog.showModal();
@@ -129,7 +178,7 @@ export function createAdjustmentHistory(fetchAdjustments) {
         },
         close() {
             dialog.close();
-            clearHistory();
+            clearRecords();
         },
     };
 }

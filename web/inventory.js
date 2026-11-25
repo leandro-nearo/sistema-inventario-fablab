@@ -1,4 +1,4 @@
-import { createAdjustmentHistory } from "./adjustment-history.js";
+import { createItemRecords } from "./item-records.js";
 
 const login = document.querySelector("#login");
 const loginForm = document.querySelector("#login-form");
@@ -38,7 +38,9 @@ const saveItem = document.querySelector("#save-item");
 const cancelItem = document.querySelector("#cancel-item");
 const itemResult = document.querySelector("#item-result");
 const openHistory = document.querySelector("#open-adjustment-history");
-const history = createAdjustmentHistory(fetchAdjustments);
+const openLoans = document.querySelector("#open-active-loans");
+const recordsDialog = document.querySelector("#item-records");
+const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, cancelItem);
 
 const pageSize = 20;
 const defaultFilters = { search: "", availability: "", order: "desc" };
@@ -106,7 +108,10 @@ function updateControls() {
     const saving = loading && itemDialog.open;
     itemFields.disabled = saving;
     openHistory.hidden = !editingItem || tokens?.role !== "ADMIN";
-    openHistory.setAttribute("aria-disabled", String(loading));
+    openLoans.hidden = !editingItem;
+    for (const button of [openHistory, openLoans]) {
+        button.setAttribute("aria-disabled", String(loading));
+    }
     updateAdjustmentControls();
     saveItem.setAttribute("aria-disabled", String(saving));
     const refreshTotal = Boolean(editingItem?.totalNeedsRefresh);
@@ -140,7 +145,7 @@ function showLogin(message, preserveDraft = false) {
     filters = defaultFilters;
     hasNext = false;
     searchForm.reset();
-    history.close();
+    itemRecords.close();
     itemDialog.close();
     if (!retainedDraft) resetItemDraft();
     itemResult.textContent = "";
@@ -185,16 +190,22 @@ async function loadAccountRole(session) {
     updateControls();
 }
 
-async function fetchAdjustments(id, page, pageSize, signal) {
+async function fetchItemRecords(kind, id, page, pageSize, signal) {
     const session = tokens;
-    if (session?.role !== "ADMIN") throw new Error("Acesso negado.");
+    const adjustments = kind === "adjustments";
+    if (!session || (adjustments && session.role !== "ADMIN")) throw new Error("Acesso negado.");
     const query = new URLSearchParams({ page, pageSize });
+    if (!adjustments) {
+        query.set("status", "active");
+        query.set("itemId", id);
+    }
+    const path = adjustments ? `/item/${id}/adjustments` : "/loan";
     try {
-        return await requestWithSession(`/item/${id}/adjustments?${query}`, session, { signal });
+        return await requestWithSession(`${path}?${query}`, session, { signal });
     } catch (error) {
-        if (session === tokens && !signal.aborted) {
+        if (session === tokens && !signal.aborted && recordsDialog.open) {
             if (error.status === 401) showLogin("Sua sessão expirou. Entre novamente.", true);
-            if (error.status === 403) {
+            if (adjustments && error.status === 403) {
                 session.role = "OPERATOR";
                 session.roleRequest = null;
                 updateControls();
@@ -408,15 +419,16 @@ function selectItem(item) {
 
 createItem.addEventListener("click", () => selectItem(null));
 
-openHistory.addEventListener("click", () => {
-    if (editingItem && tokens?.role === "ADMIN" && !pendingRequest)
-        history.open(editingItem.original);
-});
-document.querySelector("#adjustment-history").addEventListener("close", (event) => {
-    if (itemDialog.open && openHistory.hidden && !event.currentTarget.open) {
-        cancelItem.focus();
-    }
-});
+for (const [button, kind] of [
+    [openHistory, "adjustments"],
+    [openLoans, "loans"],
+]) {
+    button.addEventListener("click", () => {
+        if (editingItem && tokens && !pendingRequest && !button.hidden) {
+            itemRecords.open(editingItem.original, kind, button);
+        }
+    });
+}
 
 cancelItem.addEventListener("click", () => {
     if (!pendingRequest) itemDialog.close();

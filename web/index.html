@@ -102,29 +102,30 @@
                         </fieldset>
                         <p id="item-form-status" role="status"></p>
                         <div class="dialog-actions">
+                            <button id="open-active-loans" class="secondary" type="button" aria-haspopup="dialog" hidden>Empréstimos ativos</button>
                             <button id="open-adjustment-history" class="secondary" type="button" aria-haspopup="dialog" hidden>Histórico de ajustes</button>
                             <button id="cancel-item" class="secondary" type="button">Voltar ao estoque</button>
                             <button id="save-item" type="submit">Salvar item</button>
                         </div>
                     </form>
                 </dialog>
-                <dialog id="adjustment-history" class="panel" aria-labelledby="history-title">
+                <dialog id="item-records" class="panel" aria-labelledby="records-title">
                     <div class="inventory-heading">
-                        <h2 id="history-title">Histórico de ajustes</h2>
+                        <h2 id="records-title">Registros do item</h2>
                         <form method="dialog">
-                            <button id="close-adjustment-history" class="secondary" type="submit">Voltar ao item</button>
+                            <button id="close-item-records" class="secondary" type="submit">Voltar ao item</button>
                         </form>
                     </div>
-                    <p id="history-item"></p>
-                    <p id="history-status" role="status"></p>
+                    <p id="records-item"></p>
+                    <p id="records-status" role="status"></p>
                     <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: Os registros precisam receber foco para rolar pelo teclado. -->
-                    <section id="history-region" aria-label="Registros de ajuste" tabindex="0" hidden>
-                        <ul id="history-entries"></ul>
+                    <section id="records-region" aria-label="Registros do item" tabindex="0" hidden>
+                        <ul id="records-entries"></ul>
                     </section>
-                    <nav id="history-pagination" class="pagination" aria-label="Páginas do histórico de ajustes" hidden>
-                        <button id="history-previous" class="secondary" type="button" disabled>Anterior</button>
-                        <span id="history-page" tabindex="-1">Página 1</span>
-                        <button id="history-next" class="secondary" type="button" disabled>Próxima</button>
+                    <nav id="records-pagination" class="pagination" aria-label="Páginas dos registros do item" hidden>
+                        <button id="records-previous" class="secondary" type="button" disabled>Anterior</button>
+                        <span id="records-page" tabindex="-1">Página 1</span>
+                        <button id="records-next" class="secondary" type="button" disabled>Próxima</button>
                     </nav>
                 </dialog>
             </section>
