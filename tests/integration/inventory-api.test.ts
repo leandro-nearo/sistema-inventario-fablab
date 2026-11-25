@@ -468,6 +468,80 @@ databaseSuite("inventory API integration", () => {
         });
     });
 
+    it("renews only the current loan deadline and keeps stock unchanged", async () => {
+        const user = await prisma.user.findUniqueOrThrow({
+            where: { email: "admin@example.com" },
+        });
+        const { accessToken } = TokenService.generate({ userId: String(user.id) });
+        const authorization = { Authorization: `Bearer ${accessToken}` };
+        const client = await prisma.client.create({
+            data: { name: "Cliente", email: "client@example.com" },
+        });
+        const item = await prisma.item.create({
+            data: { name: "Arduino", location: "A1", totalQuantity: 1, availableQuantity: 0 },
+        });
+        const original = await prisma.loan.create({
+            data: {
+                clientId: client.id,
+                itemId: item.id,
+                loanDate: new Date("2020-09-01"),
+                dueDate: new Date("2020-09-20"),
+            },
+        });
+        const path = `/loan/${original.id}/renew`;
+        const expectedUpdatedAt = original.updatedAt.toISOString();
+        const dueDates = [1, 2].map((days) =>
+            new Date(Date.now() + days * 86_400_000).toISOString(),
+        );
+        const renew = (dueDate: string) =>
+            request(app).post(path).set(authorization).send({ expectedUpdatedAt, dueDate });
+        await request(app).post(path).send({ expectedUpdatedAt, dueDate: dueDates[0] }).expect(401);
+        await renew(original.dueDate.toISOString()).expect(400);
+        await renew("2020-10-01").expect(400);
+
+        const responses = await Promise.all(dueDates.map(renew));
+        expect(responses.map(({ status }) => status).sort()).toEqual([200, 409]);
+        const saved = responses.find(({ status }) => status === 200)?.body;
+        const rejected = responses.find(({ status }) => status === 409)?.body;
+        expect(saved.id).toBe(original.id);
+        expect(dueDates).toContain(saved.dueDate);
+        expect(rejected.error.code).toBe("LOAN_CHANGED");
+        await renew(saved.dueDate).expect(200, saved);
+        const futureVersion = new Date(Date.parse(saved.updatedAt) + 1).toISOString();
+        await request(app)
+            .post(path)
+            .set(authorization)
+            .send({ expectedUpdatedAt: futureVersion, dueDate: saved.dueDate })
+            .expect(409);
+        await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
+            availableQuantity: 0,
+        });
+
+        const corrected = await request(app)
+            .patch(`/loan/${original.id}`)
+            .set(authorization)
+            .send({ dueDate: original.dueDate.toISOString() })
+            .expect(200);
+        expect(corrected.body.dueDate).toBe(original.dueDate.toISOString());
+        expect(Date.parse(corrected.body.updatedAt)).toBeGreaterThan(Date.parse(saved.updatedAt));
+        const stale = await renew(saved.dueDate).expect(409);
+        expect(stale.body.error.code).toBe("LOAN_CHANGED");
+        await expect(prisma.loan.findUnique({ where: { id: original.id } })).resolves.toMatchObject(
+            {
+                dueDate: original.dueDate,
+            },
+        );
+        await request(app)
+            .post(path)
+            .set(authorization)
+            .send({ expectedUpdatedAt: corrected.body.updatedAt, dueDate: saved.dueDate })
+            .expect(200);
+
+        await request(app).post(`/loan/${original.id}/return`).set(authorization).expect(200);
+        const closed = await renew(saved.dueDate).expect(409);
+        expect(closed.body.error.code).toBe("LOAN_RETURNED");
+    });
+
     it("rejects a stock adjustment based on an old total quantity", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const item = await prisma.item.create({ data: { name: "Arduino", location: "A1" } });
@@ -645,6 +719,11 @@ databaseSuite("inventory API integration", () => {
             .expect(404, expected);
         await request(app).delete(path).set(authorization).expect(404, expected);
         await request(app).post(`${path}/return`).set(authorization).expect(404, expected);
+        await request(app)
+            .post(`${path}/renew`)
+            .set(authorization)
+            .send({ expectedUpdatedAt: "2026-09-20T10:00:00Z", dueDate: "2090-01-01" })
+            .expect(404, expected);
     });
 
     it("cancels loans without deleting their audit history", async () => {
@@ -674,6 +753,12 @@ databaseSuite("inventory API integration", () => {
             .set(authorization)
             .expect(409);
         expect(rejected.body.error.code).toBe("LOAN_CANCELLED");
+        const renewal = await request(app)
+            .post(`/loan/${loan.body.id}/renew`)
+            .set(authorization)
+            .send({ expectedUpdatedAt: loan.body.updatedAt, dueDate: "2090-01-01" })
+            .expect(409);
+        expect(renewal.body.error.code).toBe("LOAN_CANCELLED");
         const storedLoan = await prisma.loan.findUniqueOrThrow({ where: { id: loan.body.id } });
         const storedItem = await prisma.item.findUniqueOrThrow({ where: { id: item.body.id } });
         expect(storedLoan.cancelledAt).not.toBeNull();

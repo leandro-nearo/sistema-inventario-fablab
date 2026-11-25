@@ -45,3 +45,5 @@ export type UpdateLoanDTO = {
     dueDate?: string;
     returnDate?: string | null;
 };
+
+export type RenewLoanDTO = { expectedUpdatedAt: string; dueDate: string };

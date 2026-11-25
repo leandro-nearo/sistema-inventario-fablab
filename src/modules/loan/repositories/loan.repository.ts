@@ -5,6 +5,7 @@ import {
     LoanCancelledError,
     LoanCreationKeyConflictError,
     LoanDateOrderError,
+    LoanRenewalError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
 import type { LoanCreationResult, LoanListEntryDTO, LoanListOptions } from "../loan.dtos.js";
@@ -26,6 +27,8 @@ export type LoanUpdateData = {
     returnDate?: Date | null;
 };
 
+export type LoanRenewalData = { expectedUpdatedAt: Date; dueDate: Date };
+
 type LoanCreationRequest = { key: string; requestHash: string };
 
 export interface LoanRepository {
@@ -37,7 +40,20 @@ export interface LoanRepository {
     findById(id: number): Promise<Loan | null>;
     updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null>;
     returnWithStock(id: number, actorId: number): Promise<Loan | null>;
+    renewDueDate(id: number, data: LoanRenewalData): Promise<Loan | null>;
     cancelWithStock(id: number, actorId: number): Promise<Loan | null>;
+}
+
+async function findLockedLoan(tx: Prisma.TransactionClient, id: number) {
+    const [loan] = await tx.$queryRaw<Loan[]>`
+        SELECT * FROM "Loan" WHERE "id" = ${id} FOR UPDATE
+    `;
+    return loan ?? null;
+}
+
+function nextLoanUpdateTime(loan: Loan) {
+    // Mantenha a versão distinta quando duas alterações ocorrerem no mesmo milissegundo.
+    return new Date(Math.max(Date.now(), loan.updatedAt.getTime() + 1));
 }
 
 async function reserveStock(tx: Prisma.TransactionClient, itemId: number, quantity: number) {
@@ -148,16 +164,44 @@ export class PrismaLoanRepository implements LoanRepository {
         return this.changeWithStock(id, actorId, "return");
     }
 
+    renewDueDate(
+        id: number,
+        { expectedUpdatedAt, dueDate }: LoanRenewalData,
+    ): Promise<Loan | null> {
+        return prisma.$transaction(async (tx) => {
+            const existing = await findLockedLoan(tx, id);
+            if (!existing) return null;
+            if (existing.cancelledAt !== null) throw new LoanCancelledError();
+            if (existing.returnDate !== null) throw new LoanRenewalError("returned");
+            const currentVersion = existing.updatedAt.getTime();
+            const expectedVersion = expectedUpdatedAt.getTime();
+            if (currentVersion !== expectedVersion) {
+                if (
+                    expectedVersion < currentVersion &&
+                    dueDate.getTime() === existing.dueDate.getTime()
+                ) {
+                    return existing;
+                }
+                throw new LoanRenewalError("changed");
+            }
+            if (dueDate <= existing.dueDate || dueDate.getTime() <= Date.now()) {
+                throw new LoanRenewalError("date");
+            }
+
+            return tx.loan.update({
+                where: { id },
+                data: { dueDate, updatedAt: nextLoanUpdateTime(existing) },
+            });
+        });
+    }
+
     private changeWithStock(
         id: number,
         actorId: number,
         change: LoanUpdateData | "return",
     ): Promise<Loan | null> {
         return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-            const rows = await tx.$queryRaw<Loan[]>`
-                SELECT * FROM "Loan" WHERE "id" = ${id} FOR UPDATE
-            `;
-            const existing = rows[0];
+            const existing = await findLockedLoan(tx, id);
 
             if (!existing) {
                 return null;
@@ -199,6 +243,7 @@ export class PrismaLoanRepository implements LoanRepository {
                 where: { id },
                 data: {
                     ...data,
+                    updatedAt: nextLoanUpdateTime(existing),
                     ...(isBeingReturned ? { returnedById: actorId } : {}),
                     ...(isBeingReopened ? { returnedById: null } : {}),
                 },
@@ -208,10 +253,7 @@ export class PrismaLoanRepository implements LoanRepository {
 
     async cancelWithStock(id: number, actorId: number): Promise<Loan | null> {
         return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-            const rows = await tx.$queryRaw<Loan[]>`
-                SELECT * FROM "Loan" WHERE "id" = ${id} FOR UPDATE
-            `;
-            const existing = rows[0];
+            const existing = await findLockedLoan(tx, id);
 
             if (!existing) {
                 return null;
@@ -229,7 +271,11 @@ export class PrismaLoanRepository implements LoanRepository {
 
             return tx.loan.update({
                 where: { id },
-                data: { cancelledAt: new Date(), cancelledById: actorId },
+                data: {
+                    cancelledAt: new Date(),
+                    cancelledById: actorId,
+                    updatedAt: nextLoanUpdateTime(existing),
+                },
             });
         });
     }

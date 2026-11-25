@@ -13,11 +13,13 @@ import {
     LoanCancelledError,
     LoanCreationKeyConflictError,
     LoanDateOrderError,
+    LoanRenewalError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
 import { CreateLoanValidator } from "./input-validation/create-loan.validator.js";
 import {
     type LoanCreateData,
+    type LoanRenewalData,
     type LoanRepository,
     type LoanUpdateData,
     PrismaLoanRepository,
@@ -26,6 +28,16 @@ import {
 function loanNotFound() {
     return new AppError(MESSAGES.LOAN.NOT_FOUND.BY_ID, 404, "LOAN_NOT_FOUND");
 }
+
+const renewalErrors = {
+    returned: ["Um empréstimo devolvido não pode ser renovado.", 409, "LOAN_RETURNED"],
+    changed: ["O empréstimo mudou. Consulte o registro antes de renovar.", 409, "LOAN_CHANGED"],
+    date: [
+        "O novo prazo deve estar no futuro e ser posterior ao prazo atual.",
+        400,
+        "INVALID_LOAN_RENEWAL_DATE",
+    ],
+} as const;
 
 export class LoanService {
     constructor(private readonly loanRepository: LoanRepository = new PrismaLoanRepository()) {}
@@ -106,6 +118,10 @@ export class LoanService {
         return this.changeById(() => this.loanRepository.returnWithStock(id, actorId));
     }
 
+    renewById(id: number, data: LoanRenewalData): Promise<LoanDTO> {
+        return this.changeById(() => this.loanRepository.renewDueDate(id, data));
+    }
+
     private async changeById(change: () => Promise<LoanDTO | null>): Promise<LoanDTO> {
         try {
             const loan = await change();
@@ -134,6 +150,11 @@ export class LoanService {
                         ? MESSAGES.LOAN.VALIDATION.DUE_DATE_BEFORE_LOAN
                         : MESSAGES.LOAN.VALIDATION.RETURN_DATE_BEFORE_LOAN;
                 throw new AppError(message, 400, "INVALID_LOAN_DATES");
+            }
+
+            if (error instanceof LoanRenewalError) {
+                const [message, status, code] = renewalErrors[error.reason];
+                throw new AppError(message, status, code);
             }
 
             throw error;

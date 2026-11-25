@@ -31,6 +31,13 @@ export const updateLoanSchema = z
     .strict()
     .refine((data) => Object.keys(data).length > 0, "Informe ao menos um campo para atualização.");
 
+export const renewLoanSchema = z
+    .object({
+        expectedUpdatedAt: isoDateSchema,
+        dueDate: isoDateSchema,
+    })
+    .strict();
+
 export const loanListQuerySchema = z
     .object({
         ...paginationFields,

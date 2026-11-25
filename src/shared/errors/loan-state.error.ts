@@ -25,3 +25,10 @@ export class LoanDateOrderError extends Error {
         this.name = "LoanDateOrderError";
     }
 }
+
+export class LoanRenewalError extends Error {
+    constructor(readonly reason: "returned" | "changed" | "date") {
+        super("Loan renewal failed");
+        this.name = "LoanRenewalError";
+    }
+}

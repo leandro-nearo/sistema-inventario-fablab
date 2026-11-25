@@ -1,4 +1,4 @@
-import type { CreateLoanDTO, UpdateLoanDTO } from "@modules/loan/loan.dtos.js";
+import type { CreateLoanDTO, RenewLoanDTO, UpdateLoanDTO } from "@modules/loan/loan.dtos.js";
 import { loanService } from "@modules/loan/loan.service.js";
 import { MESSAGES } from "@src/constants/messages.js";
 import { DateValidator } from "@src/shared/utils/validators/date.validator.js";
@@ -40,6 +40,17 @@ class LoanController {
         const id = Number(req.params.id);
         IdValidator.validate(id);
         const loan = await loanService.returnById(id, Number(req.userId));
+        return res.json(loan);
+    }
+
+    async renewById(req: Request, res: Response) {
+        const id = Number(req.params.id);
+        IdValidator.validate(id);
+        const data: RenewLoanDTO = req.body;
+        const loan = await loanService.renewById(id, {
+            expectedUpdatedAt: new Date(data.expectedUpdatedAt),
+            dueDate: new Date(data.dueDate),
+        });
         return res.json(loan);
     }
 

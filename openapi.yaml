@@ -726,6 +726,55 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /loan/{id}/renew:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Loans]
+      summary: Prorroga o prazo de um empréstimo ativo
+      description: |
+        Envie o updatedAt da última consulta e um novo prazo futuro e posterior ao atual.
+        Uma versão mais recente de um empréstimo ativo só retorna 200 quando já tem o prazo solicitado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedUpdatedAt, dueDate]
+              additionalProperties: false
+              properties:
+                expectedUpdatedAt:
+                  type: string
+                  description: Valor de updatedAt obtido na consulta do empréstimo.
+                dueDate:
+                  type: string
+                  description: Novo prazo em YYYY-MM-DD ou com data e hora ISO, segundos e fuso.
+      responses:
+        "200":
+          description: Empréstimo com o novo prazo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Registro alterado por outra operação ou empréstimo já devolvido ou cancelado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
 components:
   securitySchemes:
     bearerAuth:

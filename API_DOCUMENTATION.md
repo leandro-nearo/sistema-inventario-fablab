@@ -102,6 +102,7 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 | `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?`, `include?`, `order?` | `200 LoanListEntry[]` |
 | `GET` | `/loan/:id` | Autenticado | — | `200 Loan` |
 | `POST` | `/loan/:id/return` | `ADMIN`, `OPERATOR` | — | `200 Loan` |
+| `POST` | `/loan/:id/renew` | `ADMIN`, `OPERATOR` | `expectedUpdatedAt`, `dueDate` | `200 Loan` |
 | `PATCH` | `/loan/:id` | `ADMIN`, `OPERATOR` | `loanDate?`, `dueDate?`, `returnDate?` | `200 Loan` |
 | `DELETE` | `/loan/:id` | `ADMIN` | — | `204` |
 
@@ -117,9 +118,11 @@ Ao criar um empréstimo, envie um UUID novo em `Idempotency-Key` e mantenha a me
 
 `POST /loan/:id/return` registra a devolução com a data e hora do servidor. Se o empréstimo já foi devolvido, retorna o registro com a data e a conta responsável originais. Um empréstimo cancelado retorna `409 LOAN_CANCELLED`. Se a data do empréstimo ainda estiver no futuro, retorna `400 INVALID_LOAN_DATES`.
 
-Consultar, alterar, devolver ou cancelar um empréstimo inexistente retorna `404` com o código `LOAN_NOT_FOUND`.
+`POST /loan/:id/renew` prorroga o prazo sem alterar o saldo. Envie o `updatedAt` que recebeu na consulta em `expectedUpdatedAt` e um novo prazo futuro em `dueDate`. O novo prazo deve ser posterior ao atual. Se uma versão mais recente do empréstimo ainda estiver ativa e já tiver o prazo solicitado, a API retorna esse registro. Uma versão mais recente com outro prazo retorna `409 LOAN_CHANGED`. Empréstimos devolvidos ou cancelados retornam `409 LOAN_RETURNED` ou `409 LOAN_CANCELLED`.
 
-Datas aceitam `YYYY-MM-DD` ou data/hora ISO com fuso, por exemplo `2026-09-04T10:00:00-03:00`. `dueDate` e `returnDate` não podem anteceder `loanDate`.
+Consultar, alterar, renovar, devolver ou cancelar um empréstimo inexistente retorna `404` com o código `LOAN_NOT_FOUND`.
+
+Datas aceitam `YYYY-MM-DD` ou data e hora ISO com segundos e fuso, por exemplo `2026-09-04T10:00:00-03:00`. `dueDate` e `returnDate` não podem anteceder `loanDate`.
 
 ## Modelos resumidos
 
