@@ -187,6 +187,8 @@ Em bases com um histórico de empréstimos grande, aplique a migração `2026112
 
 A migração `20261125010000_index_active_loans_by_item` cria, de forma concorrente, um índice parcial para as consultas de empréstimos ativos e atrasados por item.
 
+As migrações `20261125030000_index_active_loans_by_deadline` e `20261125040000_remove_superseded_active_deadline_index` substituem, de forma concorrente, o índice da fila geral de atrasos por um índice de prazo e ID. O novo índice fica disponível antes da remoção do anterior.
+
 ## Testes de integração
 
 Use exclusivamente uma base descartável cujo nome contenha `test`:
