@@ -96,6 +96,7 @@ async function request(
         signal,
         idempotencyKey,
         withServerTime,
+        withPageInfo,
     } = {},
 ) {
     let response;
@@ -119,6 +120,10 @@ async function request(
     if (response.status === 204) return;
     const body = await response.json().catch(() => null);
     if (response.ok && body !== null) {
+        if (withPageInfo) {
+            const nextPage = response.headers.get("X-Has-Next-Page");
+            return { records: body, hasNext: nextPage === null ? null : nextPage === "true" };
+        }
         return withServerTime
             ? { item: body, serverTime: Date.parse(response.headers.get("Date")) }
             : body;
@@ -276,7 +281,10 @@ async function fetchItemRecords({ kind, item, client }, { page, pageSize, loanSt
     }
     const path = adjustments ? `/item/${item.id}/adjustments` : "/loan";
     try {
-        return await requestWithSession(`${path}?${query}`, session, { signal });
+        return await requestWithSession(`${path}?${query}`, session, {
+            signal,
+            withPageInfo: true,
+        });
     } catch (error) {
         if (session === tokens && !signal.aborted && recordsDialog.open) {
             if (error.status === 401) showLogin("Sua sessão expirou. Entre novamente.", true);

@@ -181,7 +181,7 @@ export function createItemRecords(
         updateControls();
         status.textContent = view.loading;
         try {
-            const records = await fetchRecords(active, {
+            const { records, hasNext: nextPage } = await fetchRecords(active, {
                 page: requestedPage,
                 pageSize,
                 loanStatus,
@@ -194,7 +194,7 @@ export function createItemRecords(
                 return;
             }
             page = requestedPage;
-            hasNext = records.length === pageSize;
+            hasNext = nextPage ?? records.length === pageSize;
             const focusedEntry = entries.contains(document.activeElement);
             entries.replaceChildren(
                 ...records.map((record) =>
