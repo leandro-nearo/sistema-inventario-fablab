@@ -101,18 +101,58 @@ select {
     margin-bottom: 1rem;
 }
 
-#item-dialog {
+#item-dialog,
+#adjustment-history {
     box-sizing: border-box;
     width: min(28rem, calc(100% - 2rem));
     color: inherit;
+}
+
+#adjustment-history {
+    width: min(36rem, calc(100% - 2rem));
 }
 
 #item-dialog h2 {
     margin: 0 0 1rem;
 }
 
-#item-dialog::backdrop {
+#adjustment-history h2 {
+    margin: 0;
+}
+
+#item-dialog::backdrop,
+#adjustment-history::backdrop {
     background: #142c2b99;
+}
+
+#history-item {
+    margin: 0;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+
+#history-region {
+    max-height: 45vh;
+    overflow: auto;
+}
+
+#history-entries {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+#history-entries li {
+    padding: 0.5rem;
+    overflow-wrap: anywhere;
+}
+
+#history-entries li + li {
+    border-top: 1px solid #dce5e2;
+}
+
+#history-entries p {
+    margin: 0.25rem 0;
 }
 
 #item-fields {

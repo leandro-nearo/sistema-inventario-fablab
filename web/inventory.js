@@ -1,3 +1,5 @@
+import { createAdjustmentHistory } from "./adjustment-history.js";
+
 const login = document.querySelector("#login");
 const loginForm = document.querySelector("#login-form");
 const loginButton = document.querySelector("#login-button");
@@ -35,6 +37,8 @@ const adjustmentReason = document.querySelector("#item-adjustment-reason");
 const saveItem = document.querySelector("#save-item");
 const cancelItem = document.querySelector("#cancel-item");
 const itemResult = document.querySelector("#item-result");
+const openHistory = document.querySelector("#open-adjustment-history");
+const history = createAdjustmentHistory(fetchAdjustments);
 
 const pageSize = 20;
 const defaultFilters = { search: "", availability: "", order: "desc" };
@@ -49,9 +53,10 @@ let itemListNeedsRefresh = false;
 let editingItem = null;
 let uncertainEditFields = [];
 
-async function request(path, { data, method = data ? "POST" : "GET", accessToken } = {}) {
+async function request(path, { data, method = data ? "POST" : "GET", accessToken, signal } = {}) {
     let response;
     try {
+        const timeout = AbortSignal.timeout(10_000);
         response = await fetch(path, {
             method,
             headers: {
@@ -60,7 +65,7 @@ async function request(path, { data, method = data ? "POST" : "GET", accessToken
             },
             body: data ? JSON.stringify(data) : undefined,
             cache: "no-store",
-            signal: AbortSignal.timeout(10_000),
+            signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
         });
     } catch {
         throw new Error("Falha de conexão. Tente novamente.");
@@ -100,6 +105,8 @@ function updateControls() {
     }
     const saving = loading && itemDialog.open;
     itemFields.disabled = saving;
+    openHistory.hidden = !editingItem || tokens?.role !== "ADMIN";
+    openHistory.setAttribute("aria-disabled", String(loading));
     updateAdjustmentControls();
     saveItem.setAttribute("aria-disabled", String(saving));
     const refreshTotal = Boolean(editingItem?.totalNeedsRefresh);
@@ -133,6 +140,7 @@ function showLogin(message, preserveDraft = false) {
     filters = defaultFilters;
     hasNext = false;
     searchForm.reset();
+    history.close();
     itemDialog.close();
     if (!retainedDraft) resetItemDraft();
     itemResult.textContent = "";
@@ -147,17 +155,53 @@ function showLogin(message, preserveDraft = false) {
 }
 
 async function requestWithSession(path, session, options) {
+    const accessToken = session.accessToken;
     try {
-        return await request(path, { ...options, accessToken: session.accessToken });
+        return await request(path, { ...options, accessToken });
     } catch (error) {
-        if (error.status !== 401 || session !== tokens) throw error;
+        if (error.status !== 401 || session !== tokens || options?.signal?.aborted) throw error;
     }
 
-    const freshTokens = await request("/auth/refresh", {
-        data: { refreshToken: session.refreshToken },
-    });
-    Object.assign(session, freshTokens);
+    if (session.accessToken === accessToken) {
+        // A renovação troca o token. As consultas simultâneas usam a mesma resposta.
+        session.refreshing ??= request("/auth/refresh", {
+            data: { refreshToken: session.refreshToken },
+        })
+            .then((freshTokens) => Object.assign(session, freshTokens))
+            .finally(() => {
+                session.refreshing = null;
+            });
+        await session.refreshing;
+    }
     if (session === tokens) return request(path, { ...options, accessToken: session.accessToken });
+}
+
+async function loadAccountRole(session) {
+    const roleRequest = request("/auth/me", { accessToken: session.accessToken }).catch(() => null);
+    session.roleRequest = roleRequest;
+    const account = await roleRequest;
+    if (session !== tokens || session.roleRequest !== roleRequest || !account) return;
+    session.role = account.role;
+    updateControls();
+}
+
+async function fetchAdjustments(id, page, pageSize, signal) {
+    const session = tokens;
+    if (session?.role !== "ADMIN") throw new Error("Acesso negado.");
+    const query = new URLSearchParams({ page, pageSize });
+    try {
+        return await requestWithSession(`/item/${id}/adjustments?${query}`, session, { signal });
+    } catch (error) {
+        if (session === tokens && !signal.aborted) {
+            if (error.status === 401) showLogin("Sua sessão expirou. Entre novamente.", true);
+            if (error.status === 403) {
+                session.role = "OPERATOR";
+                session.roleRequest = null;
+                updateControls();
+            }
+        }
+        throw error;
+    }
 }
 
 async function loadPage(requestedPage, requestedFilters) {
@@ -177,6 +221,7 @@ async function loadPage(requestedPage, requestedFilters) {
     try {
         const items = await pendingRequest;
         if (session !== tokens) return;
+        void loadAccountRole(session);
         if (items.length === 0 && requestedPage > page && !filterChanged) {
             hasNext = false;
             inventoryStatus.textContent = "Você chegou ao fim da lista.";
@@ -363,6 +408,16 @@ function selectItem(item) {
 
 createItem.addEventListener("click", () => selectItem(null));
 
+openHistory.addEventListener("click", () => {
+    if (editingItem && tokens?.role === "ADMIN" && !pendingRequest)
+        history.open(editingItem.original);
+});
+document.querySelector("#adjustment-history").addEventListener("close", (event) => {
+    if (itemDialog.open && openHistory.hidden && !event.currentTarget.open) {
+        cancelItem.focus();
+    }
+});
+
 cancelItem.addEventListener("click", () => {
     if (!pendingRequest) itemDialog.close();
 });
@@ -489,6 +544,7 @@ logout.addEventListener("click", async () => {
     loginButton.disabled = true;
     try {
         await pendingRequest?.catch(() => null);
+        await session.refreshing?.catch(() => null);
         await request("/auth/logout", { data: { refreshToken: session.refreshToken } });
     } catch {
         loginStatus.textContent =

@@ -42,6 +42,8 @@ A API usa `http://localhost:3000` por padrão. Abra [o estoque](http://localhost
 
 Selecione o nome de um item para editar seu nome, categoria ou localização. Para alterar a quantidade total, informe o motivo do ajuste.
 
+Administradores podem abrir **Histórico de ajustes** na edição do item para consultar quantidades, motivos, datas e contas responsáveis.
+
 Para verificar o servidor:
 
 ```bash

@@ -23,5 +23,9 @@ describe("inventory page", () => {
             .get("/inventario/inventory.js")
             .expect(200)
             .expect("Content-Type", /javascript/);
+        await request(app)
+            .get("/inventario/adjustment-history.js")
+            .expect(200)
+            .expect("Content-Type", /javascript/);
     });
 });
