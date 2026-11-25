@@ -945,9 +945,13 @@ databaseSuite("inventory API integration", () => {
                 .set(authorization)
                 .query({ itemId: item.id, status: "active", page, pageSize: 1 })
                 .expect(200);
-        expect((await getPage(1)).body).toMatchObject([{ id: second.id }]);
-        expect((await getPage(2)).body).toMatchObject([{ id: first.id }]);
-        expect((await getPage(3)).body).toEqual([]);
+        expect((await getPage(1).expect("X-Has-Next-Page", "true")).body).toMatchObject([
+            { id: second.id },
+        ]);
+        expect((await getPage(2).expect("X-Has-Next-Page", "false")).body).toMatchObject([
+            { id: first.id },
+        ]);
+        expect((await getPage(3).expect("X-Has-Next-Page", "false")).body).toEqual([]);
 
         const clientLoans = (filters: Record<string, string | number>) =>
             request(app)

@@ -23,6 +23,7 @@ class LoanController {
         const includeItemLocation = include.includes("itemLocation");
         const loans = await loanService.list({
             ...paginationFrom(query),
+            take: query.pageSize + 1,
             status: query.status,
             ...(query.itemId !== undefined ? { itemId: query.itemId } : {}),
             ...(query.clientId !== undefined ? { clientId: query.clientId } : {}),
@@ -31,7 +32,9 @@ class LoanController {
             includeItemLocation,
             order: query.order,
         });
-        return res.json(loans);
+        return res
+            .set("X-Has-Next-Page", String(loans.length > query.pageSize))
+            .json(loans.slice(0, query.pageSize));
     }
 
     async getById(req: Request, res: Response) {

@@ -20,7 +20,7 @@ const app = express();
 app.disable("x-powered-by");
 app.use(pinoHttp({ logger }));
 app.use(helmet());
-app.use(cors({ origin: env.corsOrigins }));
+app.use(cors({ origin: env.corsOrigins, exposedHeaders: ["X-Has-Next-Page"] }));
 app.use(express.json({ limit: env.jsonBodyLimit }));
 app.use("/health", healthRouter);
 app.use(

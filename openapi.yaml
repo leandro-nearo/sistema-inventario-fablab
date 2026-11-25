@@ -602,6 +602,11 @@ paths:
       responses:
         "200":
           description: Empréstimos
+          headers:
+            X-Has-Next-Page:
+              description: Indica se há outra página de empréstimos para os filtros aplicados.
+              schema:
+                type: boolean
           content:
             application/json:
               schema:

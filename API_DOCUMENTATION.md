@@ -116,6 +116,8 @@ Use `GET /loan?itemId=42&status=active` para listar empréstimos ativos do item 
 
 Use `include=client` para acrescentar `client: { name }`, `include=item` para `item: { name }` ou `include=itemLocation` para `item: { name, location }`. Combine `client` com uma das opções de item por meio de uma vírgula. Os campos `clientId` e `itemId` identificam os registros relacionados.
 
+O cabeçalho `X-Has-Next-Page` de `GET /loan` vale `true` quando há mais registros para os filtros aplicados e `false` na última página ou em uma página vazia. O corpo da resposta é um array com até `pageSize` registros.
+
 `order=recent` é o padrão e ordena pela data do empréstimo, da mais nova à mais antiga, com maior ID primeiro em caso de empate. `order=due` mostra os vencimentos mais antigos primeiro. Em caso de empate no vencimento, o menor ID vem primeiro. Para consultar os atrasos de todo o estoque, use `GET /loan?status=overdue&include=client,itemLocation&order=due`.
 
 Ao criar um empréstimo, envie um UUID novo em `Idempotency-Key` e mantenha a mesma chave e os mesmos dados se precisar reenviar. A repetição pela mesma conta retorna o estado atual do empréstimo já criado. Usar a chave com outros dados válidos retorna `409 IDEMPOTENCY_KEY_CONFLICT`. Uma tentativa rejeitada antes da criação permite reutilizar a chave.
