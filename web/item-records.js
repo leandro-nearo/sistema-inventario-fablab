@@ -1,6 +1,7 @@
 const closeButton = document.querySelector("#close-item-records");
 const title = document.querySelector("#records-title");
 const name = document.querySelector("#records-item");
+const result = document.querySelector("#records-result");
 const status = document.querySelector("#records-status");
 const region = document.querySelector("#records-region");
 const entries = document.querySelector("#records-entries");
@@ -57,7 +58,7 @@ function renderAdjustment(adjustment) {
     return entry;
 }
 
-function renderLoan(loan) {
+function renderLoan(loan, confirmReturn) {
     const entry = document.createElement("li");
     const identifier = document.createElement("strong");
     identifier.textContent = `Empréstimo #${loan.id}`;
@@ -67,24 +68,32 @@ function renderLoan(loan) {
     details.textContent = `${client} · ${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
     const due = document.createElement("p");
     due.append("Prazo de devolução ", renderDate(loan.dueDate));
-    entry.append(identifier, details, due);
+    const returnButton = document.createElement("button");
+    returnButton.type = "button";
+    returnButton.className = "secondary";
+    returnButton.textContent = "Registrar devolução";
+    returnButton.setAttribute("aria-label", `Registrar devolução do empréstimo #${loan.id}`);
+    returnButton.addEventListener("click", () => void confirmReturn(loan));
+    entry.append(identifier, details, due, returnButton);
     return entry;
 }
 
-export function createItemRecords(dialog, fetchRecords, fallbackFocus) {
+export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocus) {
     let active = null;
     let page = 1;
     let hasNext = false;
     let loading = null;
+    let returning = false;
 
     function updateControls() {
         const focused = document.activeElement;
-        const busy = loading !== null;
+        const busy = loading !== null || returning;
         previous.disabled = page === 1;
         next.disabled = !hasNext;
-        for (const button of [previous, next]) {
+        for (const button of [previous, next, ...entries.querySelectorAll("button")]) {
             button.setAttribute("aria-disabled", String(busy || button.disabled));
         }
+        closeButton.setAttribute("aria-disabled", String(returning));
         region.setAttribute("aria-busy", String(busy));
         pageLabel.textContent = `Página ${page}`;
         if ((focused === previous || focused === next) && focused.disabled) pageLabel.focus();
@@ -104,7 +113,7 @@ export function createItemRecords(dialog, fetchRecords, fallbackFocus) {
     }
 
     async function loadPage(requestedPage) {
-        if (!active || loading) return;
+        if (!active || loading || returning) return;
         const { item, kind } = active;
         const view = views[kind];
         const controller = new AbortController();
@@ -127,9 +136,11 @@ export function createItemRecords(dialog, fetchRecords, fallbackFocus) {
             }
             page = requestedPage;
             hasNext = records.length === pageSize;
-            entries.replaceChildren(...records.map(view.render));
+            const focusedEntry = entries.contains(document.activeElement);
+            entries.replaceChildren(...records.map((record) => view.render(record, confirmReturn)));
             region.hidden = records.length === 0;
             region.scrollTop = 0;
+            if (focusedEntry) (region.hidden ? closeButton : region).focus({ preventScroll: true });
             pagination.hidden = page === 1 && !hasNext;
             const emptyMessage = page === 1 ? view.empty : "Nenhum registro nesta página.";
             status.textContent = records.length
@@ -147,22 +158,56 @@ export function createItemRecords(dialog, fetchRecords, fallbackFocus) {
         }
     }
 
+    async function confirmReturn(loan) {
+        const current = active;
+        if (current?.kind !== "loans" || !dialog.open || loading || returning) return;
+        const quantity = `${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
+        if (!window.confirm(`Registrar a devolução de ${quantity} do empréstimo #${loan.id}?`)) {
+            return;
+        }
+        returning = true;
+        updateControls();
+        result.textContent = "Registrando devolução…";
+        let message;
+        try {
+            await returnLoan(loan.id);
+            message = `Devolução do empréstimo #${loan.id} registrada.`;
+        } catch (error) {
+            message =
+                error.status >= 400 && error.status < 500
+                    ? error.message
+                    : "Não foi possível confirmar a devolução. Consulte a lista antes de repetir.";
+        }
+        returning = false;
+        if (current !== active || !dialog.open) return;
+        result.textContent = message;
+        clearEntries();
+        void loadPage(1);
+    }
+
     function clearRecords() {
         loading?.abort();
         loading = null;
         active = null;
         name.textContent = "";
+        result.textContent = "";
         status.textContent = "";
         clearEntries();
     }
 
     previous.addEventListener("click", () => void loadPage(page - 1));
     next.addEventListener("click", () => void loadPage(page + 1));
+    closeButton.form.addEventListener("submit", preventCloseWhileReturning);
+    dialog.addEventListener("cancel", preventCloseWhileReturning);
     dialog.addEventListener("close", () => {
         if (dialog.open) return;
         if (active?.opener.hidden) fallbackFocus.focus();
         clearRecords();
     });
+
+    function preventCloseWhileReturning(event) {
+        if (returning) event.preventDefault();
+    }
 
     return {
         open(item, kind, opener) {

@@ -44,6 +44,8 @@ Selecione o nome de um item para editar seu nome, categoria ou localização. Pa
 
 Abra **Empréstimos ativos** na edição do item para consultar as unidades emprestadas, os nomes e IDs dos clientes e os prazos de devolução.
 
+Use **Registrar devolução** para devolver todas as unidades de um empréstimo. O estoque reflete a devolução ao voltar à lista de itens.
+
 Administradores podem abrir **Histórico de ajustes** na edição do item para consultar quantidades, motivos, datas e contas responsáveis.
 
 Para verificar o servidor:

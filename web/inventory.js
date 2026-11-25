@@ -40,7 +40,7 @@ const itemResult = document.querySelector("#item-result");
 const openHistory = document.querySelector("#open-adjustment-history");
 const openLoans = document.querySelector("#open-active-loans");
 const recordsDialog = document.querySelector("#item-records");
-const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, cancelItem);
+const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, returnLoan, cancelItem);
 
 const pageSize = 20;
 const defaultFilters = { search: "", availability: "", order: "desc" };
@@ -51,7 +51,7 @@ let hasNext = false;
 let pendingRequest = null;
 let retainedDraft = null;
 let itemNeedsReview = false;
-let itemListNeedsRefresh = false;
+let itemListRefreshPage = null;
 let editingItem = null;
 let uncertainEditFields = [];
 
@@ -133,7 +133,7 @@ function resetItemDraft() {
     itemForm.reset();
     itemFormStatus.textContent = "";
     itemNeedsReview = false;
-    itemListNeedsRefresh = false;
+    itemListRefreshPage = null;
     editingItem = null;
     uncertainEditFields = [];
 }
@@ -213,6 +213,25 @@ async function fetchItemRecords(kind, id, page, pageSize, signal) {
             }
         }
         throw error;
+    }
+}
+
+async function returnLoan(id) {
+    const session = tokens;
+    if (!session || pendingRequest) throw new Error("Aguarde a operação atual.");
+    itemListRefreshPage = filters.availability === "unavailable" ? 1 : page;
+    pendingRequest = requestWithSession(`/loan/${id}/return`, session, { method: "POST" });
+    updateControls();
+    try {
+        await pendingRequest;
+    } catch (error) {
+        if (error.status === 401 && session === tokens) {
+            showLogin("Sua sessão expirou. Entre novamente.", true);
+        }
+        throw error;
+    } finally {
+        pendingRequest = null;
+        updateControls();
     }
 }
 
@@ -438,14 +457,16 @@ itemDialog.addEventListener("cancel", (event) => {
     if (pendingRequest) event.preventDefault();
 });
 itemDialog.addEventListener("close", () => {
-    if (itemNeedsReview || itemListNeedsRefresh) {
-        itemListNeedsRefresh = false;
-        void loadPage(!editingItem && filters.order === "desc" ? 1 : page, filters);
+    if (itemNeedsReview || itemListRefreshPage !== null) {
+        const refreshPage =
+            itemListRefreshPage ?? (!editingItem && filters.order === "desc" ? 1 : page);
+        itemListRefreshPage = null;
+        void loadPage(refreshPage, filters);
     }
 });
 
 async function refreshItemQuantity(path, session) {
-    itemListNeedsRefresh = true;
+    itemListRefreshPage ??= page;
     editingItem.totalNeedsRefresh = true;
     try {
         pendingRequest = requestWithSession(path, session);
@@ -506,6 +527,7 @@ itemForm.addEventListener("submit", async (event) => {
     const data = editingId
         ? fields
         : { ...fields, category: fields.category ?? "", totalQuantity: itemQuantity.valueAsNumber };
+    const refreshPage = itemListRefreshPage ?? (!editingId && filters.order === "desc" ? 1 : page);
     saveItem.focus();
     pendingRequest = requestWithSession(path, session, {
         method: editingId ? "PATCH" : "POST",
@@ -547,7 +569,7 @@ itemForm.addEventListener("submit", async (event) => {
         pendingRequest = null;
         updateControls();
     }
-    void loadPage(!editingId && filters.order === "desc" ? 1 : page, filters);
+    void loadPage(refreshPage, filters);
 });
 
 logout.addEventListener("click", async () => {

@@ -234,6 +234,7 @@ button[aria-disabled="true"] {
 
 #login-status:empty,
 #item-result:empty,
+#records-result:empty,
 #item-form-status:empty {
     margin: 0;
 }
