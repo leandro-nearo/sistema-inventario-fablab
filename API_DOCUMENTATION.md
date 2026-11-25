@@ -34,6 +34,8 @@ Um corpo JSON que excede o limite configurado em `JSON_BODY_LIMIT` recebe `413` 
 
 Endpoints de lista aceitam `page` (padrão 1) e `pageSize` (padrão 50, máximo 100). A resposta continua sendo um array para manter compatibilidade.
 
+Quando disponível, `search` busca um trecho literal sem distinguir maiúsculas de minúsculas. Os filtros de categoria e localização comparam o valor completo da mesma forma.
+
 A lista de empréstimos e o histórico do cliente usam a data do empréstimo em ordem decrescente. O histórico de ajustes usa a data de criação em ordem decrescente. Em caso de empate, o maior ID vem primeiro.
 
 ## Usuários

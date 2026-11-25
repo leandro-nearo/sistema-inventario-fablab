@@ -1,6 +1,7 @@
 import type { Prisma, User } from "@src/generated/prisma/client.js";
 import { prisma } from "@src/lib/prisma.js";
 import type { UserRole } from "@src/shared/auth/roles.js";
+import { escapeLikePattern } from "@src/shared/utils/postgres-like.js";
 
 export type PublicUser = Pick<User, "id" | "email" | "username"> & {
     role: UserRole;
@@ -43,13 +44,14 @@ export class PrismaUserRepository implements UserRepository {
     }
 
     list({ skip, take, search }: { skip: number; take: number; search?: string }) {
+        const pattern = search && escapeLikePattern(search);
         return prisma.user.findMany({
-            ...(search
+            ...(pattern
                 ? {
                       where: {
                           OR: [
-                              { username: { contains: search, mode: "insensitive" } },
-                              { email: { contains: search, mode: "insensitive" } },
+                              { username: { contains: pattern, mode: "insensitive" } },
+                              { email: { contains: pattern, mode: "insensitive" } },
                           ],
                       },
                   }

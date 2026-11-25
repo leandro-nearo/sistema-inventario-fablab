@@ -1,5 +1,6 @@
 import type { Client, Item, Loan, Prisma } from "@src/generated/prisma/client.js";
 import { prisma } from "@src/lib/prisma.js";
+import { escapeLikePattern } from "@src/shared/utils/postgres-like.js";
 
 export type ClientLoanHistory = Client & {
     loans: Array<Loan & { item: Item }>;
@@ -23,13 +24,14 @@ export class PrismaClientRepository implements ClientRepository {
     }
 
     list({ skip, take, search }: { skip: number; take: number; search?: string }) {
+        const pattern = search && escapeLikePattern(search);
         return prisma.client.findMany({
-            ...(search
+            ...(pattern
                 ? {
                       where: {
                           OR: [
-                              { name: { contains: search, mode: "insensitive" } },
-                              { email: { contains: search, mode: "insensitive" } },
+                              { name: { contains: pattern, mode: "insensitive" } },
+                              { email: { contains: pattern, mode: "insensitive" } },
                           ],
                       },
                   }

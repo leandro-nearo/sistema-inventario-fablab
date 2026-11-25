@@ -165,6 +165,47 @@ databaseSuite("inventory API integration", () => {
         expect(response.body.error.code).toBe("VALIDATION_ERROR");
     });
 
+    it("matches literal characters in searches and stock filters", async () => {
+        const authorization = { Authorization: `Bearer ${await accessToken()}` };
+        const item = await prisma.item.create({
+            data: { name: "Torneira_50% inox", category: "Conexão_1", location: "Estante\\A" },
+        });
+        const otherItem = await prisma.item.create({
+            data: { name: "Torneira X50 inox", category: "ConexãoX1", location: "EstanteA" },
+        });
+        const client = await prisma.client.create({
+            data: { name: "Oficina 100%", email: "oficina@example.com" },
+        });
+        await prisma.client.create({
+            data: { name: "Oficina 100 anos", email: "outra-oficina@example.com" },
+        });
+        const user = await prisma.user.create({
+            data: {
+                username: "lab_team",
+                email: "lab-team@example.com",
+                passwordHash: await Bcrypt.hashPassword("other-test-password"),
+            },
+        });
+
+        const queries = [
+            ["/item", { search: "_50%" }, item.id],
+            ["/item", { search: "estante\\" }, item.id],
+            ["/item", { search: "TORNEIRA", page: 2, pageSize: 1 }, otherItem.id],
+            ["/item/by-category", { category: "CONEXÃO_1" }, item.id],
+            ["/item/by-location", { location: "estante\\a" }, item.id],
+            ["/client", { search: "100%" }, client.id],
+            ["/user", { search: "_" }, user.id],
+        ] as const;
+        for (const [path, query, id] of queries) {
+            const { body } = await request(app)
+                .get(path)
+                .set(authorization)
+                .query(query)
+                .expect(200);
+            expect.soft(body, `${path} ${JSON.stringify(query)}`).toMatchObject([{ id }]);
+        }
+    });
+
     it.each(["client@example.com", "CLIENT@EXAMPLE.COM"])(
         "returns the email conflict when %s is already registered",
         async (email) => {

@@ -393,6 +393,7 @@ paths:
         - name: category
           in: query
           required: true
+          description: Categoria completa, sem distinção entre maiúsculas e minúsculas.
           schema:
             type: string
         - $ref: "#/components/parameters/Page"
@@ -410,6 +411,7 @@ paths:
         - name: location
           in: query
           required: true
+          description: Localização completa, sem distinção entre maiúsculas e minúsculas.
           schema:
             type: string
         - $ref: "#/components/parameters/Page"
@@ -618,6 +620,7 @@ components:
     Search:
       name: search
       in: query
+      description: Busca por trecho literal, sem distinção entre maiúsculas e minúsculas.
       schema:
         type: string
         maxLength: 100

@@ -4,6 +4,7 @@ import {
     InventoryCapacityError,
     InventoryInvariantError,
 } from "@src/shared/errors/inventory-capacity.error.js";
+import { escapeLikePattern } from "@src/shared/utils/postgres-like.js";
 
 export type ItemUpdateData = {
     name?: string;
@@ -37,14 +38,15 @@ export class PrismaItemRepository implements ItemRepository {
     }
 
     list({ skip, take, search }: { skip: number; take: number; search?: string }) {
+        const pattern = search && escapeLikePattern(search);
         return prisma.item.findMany({
-            ...(search
+            ...(pattern
                 ? {
                       where: {
                           OR: [
-                              { name: { contains: search, mode: "insensitive" } },
-                              { category: { contains: search, mode: "insensitive" } },
-                              { location: { contains: search, mode: "insensitive" } },
+                              { name: { contains: pattern, mode: "insensitive" } },
+                              { category: { contains: pattern, mode: "insensitive" } },
+                              { location: { contains: pattern, mode: "insensitive" } },
                           ],
                       },
                   }
@@ -61,7 +63,7 @@ export class PrismaItemRepository implements ItemRepository {
 
     listByCategory(category: string, { skip, take }: { skip: number; take: number }) {
         return prisma.item.findMany({
-            where: { category: { equals: category, mode: "insensitive" } },
+            where: { category: { equals: escapeLikePattern(category), mode: "insensitive" } },
             orderBy: { id: "asc" },
             skip,
             take,
@@ -70,7 +72,7 @@ export class PrismaItemRepository implements ItemRepository {
 
     listByLocation(location: string, { skip, take }: { skip: number; take: number }) {
         return prisma.item.findMany({
-            where: { location: { equals: location, mode: "insensitive" } },
+            where: { location: { equals: escapeLikePattern(location), mode: "insensitive" } },
             orderBy: { id: "asc" },
             skip,
             take,
