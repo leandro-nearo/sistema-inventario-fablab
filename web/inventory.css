@@ -101,12 +101,13 @@ button.secondary {
     color: #142c2b;
 }
 
-button:enabled:hover {
+button:enabled:not([aria-disabled="true"]):hover {
     background: #0e4d40;
     color: #fff;
 }
 
-button:disabled {
+button:disabled,
+button[aria-disabled="true"] {
     opacity: 0.55;
     cursor: default;
 }

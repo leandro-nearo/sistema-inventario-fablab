@@ -53,11 +53,17 @@ async function request(path, { data, accessToken } = {}) {
 
 function updateControls() {
     const loading = pendingItems !== null;
-    previous.disabled = loading || page === 1;
-    next.disabled = loading || !hasNext;
-    searchButton.disabled = loading;
+    const focused = document.activeElement;
+    previous.disabled = page === 1;
+    next.disabled = !hasNext;
+    for (const button of [searchButton, previous, next]) {
+        button.setAttribute("aria-disabled", String(loading || button.disabled));
+    }
     tableRegion.setAttribute("aria-busy", String(loading));
     pageLabel.textContent = `Página ${page}`;
+    if ((focused === previous || focused === next) && focused.disabled) {
+        (pagination.hidden ? searchButton : pageLabel).focus();
+    }
 }
 
 function showLogin(message) {
