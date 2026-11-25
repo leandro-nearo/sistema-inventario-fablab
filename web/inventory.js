@@ -21,10 +21,15 @@ const next = document.querySelector("#next");
 const pageLabel = document.querySelector("#page");
 const createItem = document.querySelector("#create-item");
 const itemDialog = document.querySelector("#item-dialog");
+const itemDialogTitle = document.querySelector("#item-dialog-title");
 const itemForm = document.querySelector("#item-form");
 const itemFields = document.querySelector("#item-fields");
 const itemFormStatus = document.querySelector("#item-form-status");
+const itemName = document.querySelector("#item-name");
+const itemLocation = document.querySelector("#item-location");
+const itemCategory = document.querySelector("#item-category");
 const itemQuantity = document.querySelector("#item-quantity");
+const itemQuantityField = document.querySelector("#item-quantity-field");
 const saveItem = document.querySelector("#save-item");
 const cancelItem = document.querySelector("#cancel-item");
 const itemResult = document.querySelector("#item-result");
@@ -38,12 +43,14 @@ let hasNext = false;
 let pendingRequest = null;
 let retainedDraft = null;
 let itemNeedsReview = false;
+let editingItem = null;
+let uncertainEditFields = [];
 
-async function request(path, { data, accessToken } = {}) {
+async function request(path, { data, method = data ? "POST" : "GET", accessToken } = {}) {
     let response;
     try {
         response = await fetch(path, {
-            method: data ? "POST" : "GET",
+            method,
             headers: {
                 ...(data ? { "Content-Type": "application/json" } : {}),
                 ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
@@ -78,7 +85,13 @@ function updateControls() {
     const focused = document.activeElement;
     previous.disabled = page === 1;
     next.disabled = !hasNext;
-    for (const button of [searchButton, previous, next, createItem]) {
+    for (const button of [
+        searchButton,
+        previous,
+        next,
+        createItem,
+        ...rows.querySelectorAll(".edit-item"),
+    ]) {
         button.setAttribute("aria-disabled", String(loading || button.disabled));
     }
     const saving = loading && itemDialog.open;
@@ -97,6 +110,8 @@ function resetItemDraft() {
     itemForm.reset();
     itemFormStatus.textContent = "";
     itemNeedsReview = false;
+    editingItem = null;
+    uncertainEditFields = [];
 }
 
 function showLogin(message, preserveDraft = false) {
@@ -119,9 +134,9 @@ function showLogin(message, preserveDraft = false) {
     emailField.focus();
 }
 
-async function requestWithSession(path, session, data) {
+async function requestWithSession(path, session, options) {
     try {
-        return await request(path, { data, accessToken: session.accessToken });
+        return await request(path, { ...options, accessToken: session.accessToken });
     } catch (error) {
         if (error.status !== 401 || session !== tokens) throw error;
     }
@@ -130,7 +145,7 @@ async function requestWithSession(path, session, data) {
         data: { refreshToken: session.refreshToken },
     });
     Object.assign(session, freshTokens);
-    if (session === tokens) return request(path, { data, accessToken: session.accessToken });
+    if (session === tokens) return request(path, { ...options, accessToken: session.accessToken });
 }
 
 async function loadPage(requestedPage, requestedFilters) {
@@ -159,12 +174,21 @@ async function loadPage(requestedPage, requestedFilters) {
         page = requestedPage;
         filters = requestedFilters;
         hasNext = items.length === pageSize;
+        const focusedItemId = document.activeElement?.dataset?.itemId;
         rows.replaceChildren(
             ...items.map((item) => {
                 const row = document.createElement("tr");
                 const name = document.createElement("th");
                 name.scope = "row";
-                name.textContent = item.name;
+                const edit = document.createElement("button");
+                edit.type = "button";
+                edit.className = "edit-item";
+                edit.dataset.itemId = String(item.id);
+                edit.setAttribute("aria-label", `Editar ${item.name}`);
+                edit.setAttribute("aria-haspopup", "dialog");
+                edit.textContent = item.name;
+                edit.addEventListener("click", () => selectItem(item));
+                name.append(edit);
                 row.append(name);
                 for (const value of [
                     item.availableQuantity,
@@ -179,6 +203,9 @@ async function loadPage(requestedPage, requestedFilters) {
         );
         tableRegion.hidden = items.length === 0;
         pagination.hidden = items.length === 0 && page === 1;
+        if (focusedItemId) {
+            (rows.querySelector(`[data-item-id="${focusedItemId}"]`) ?? searchButton).focus();
+        }
         inventoryStatus.textContent =
             items.length === 0
                 ? "Nenhum item encontrado."
@@ -244,13 +271,56 @@ next.addEventListener("click", () => void loadPage(page + 1, filters));
 
 function openItemDialog() {
     if (!tokens || pendingRequest) return;
+    itemDialogTitle.textContent = editingItem ? "Editar item" : "Cadastrar item";
+    itemQuantityField.hidden = Boolean(editingItem);
+    itemQuantity.disabled = Boolean(editingItem);
     if (!itemNeedsReview) itemFormStatus.textContent = "";
     itemResult.textContent = "";
     itemDialog.showModal();
     updateControls();
 }
 
-createItem.addEventListener("click", openItemDialog);
+function readItemFields() {
+    return {
+        name: itemName.value.trim(),
+        location: itemLocation.value.trim(),
+        category: itemCategory.value.trim() || null,
+    };
+}
+
+function itemChanges() {
+    const fields = readItemFields();
+    if (!editingItem) return fields;
+    const changes = {};
+    // O servidor pode ter aplicado os campos de um envio sem confirmação.
+    for (const [key, value] of Object.entries(fields)) {
+        if (value !== editingItem.baseline[key]) changes[key] = value;
+        else if (uncertainEditFields.includes(key)) changes[key] = editingItem.original[key];
+    }
+    return changes;
+}
+
+function selectItem(item) {
+    if (!tokens || pendingRequest) return;
+    const switching = item?.id !== editingItem?.id;
+    const fields = itemChanges();
+    const hasDraft =
+        itemNeedsReview ||
+        (editingItem
+            ? Object.keys(fields).length > 0
+            : Boolean(fields.name || fields.location || fields.category || itemQuantity.value));
+    if (switching && hasDraft && !window.confirm("Descartar o rascunho atual?")) return;
+    if (switching || !hasDraft) {
+        resetItemDraft();
+        itemName.value = item?.name ?? "";
+        itemLocation.value = item?.location ?? "";
+        itemCategory.value = item?.category ?? "";
+        editingItem = item ? { id: item.id, original: item, baseline: readItemFields() } : null;
+    }
+    openItemDialog();
+}
+
+createItem.addEventListener("click", () => selectItem(null));
 
 cancelItem.addEventListener("click", () => {
     if (!pendingRequest) itemDialog.close();
@@ -259,31 +329,37 @@ itemDialog.addEventListener("cancel", (event) => {
     if (pendingRequest) event.preventDefault();
 });
 itemDialog.addEventListener("close", () => {
-    if (itemNeedsReview) void loadPage(filters.order === "desc" ? 1 : page, filters);
+    if (itemNeedsReview)
+        void loadPage(!editingItem && filters.order === "desc" ? 1 : page, filters);
 });
 
 itemForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const session = tokens;
     if (pendingRequest || !session || !itemDialog.open) return;
+    const editingId = editingItem?.id;
+    const fields = itemChanges();
+    if (editingId && Object.keys(fields).length === 0) {
+        itemFormStatus.textContent = "Altere algum dado para salvar.";
+        return;
+    }
     if (
         itemNeedsReview &&
         !window.confirm(
-            "O item pode já ter sido cadastrado. Confirme que consultou o estoque antes de reenviar.",
+            `${editingId ? "A alteração pode já ter sido gravada." : "O item pode já ter sido cadastrado."} Confirme que consultou o estoque antes de reenviar.`,
         )
     ) {
         return;
     }
     itemNeedsReview = false;
-    const fields = new FormData(itemForm);
-    const data = {
-        name: fields.get("name"),
-        location: fields.get("location"),
-        category: fields.get("category"),
-        totalQuantity: itemQuantity.valueAsNumber,
-    };
+    const data = editingId
+        ? fields
+        : { ...fields, category: fields.category ?? "", totalQuantity: itemQuantity.valueAsNumber };
     saveItem.focus();
-    pendingRequest = requestWithSession("/item", session, data);
+    pendingRequest = requestWithSession(editingId ? `/item/${editingId}` : "/item", session, {
+        method: editingId ? "PATCH" : "POST",
+        data,
+    });
     updateControls();
     itemFormStatus.textContent = "Salvando item…";
 
@@ -292,7 +368,7 @@ itemForm.addEventListener("submit", async (event) => {
         if (session !== tokens) return;
         itemDialog.close();
         resetItemDraft();
-        itemResult.textContent = `Item “${item.name}” cadastrado.`;
+        itemResult.textContent = `Item “${item.name}” ${editingId ? "atualizado" : "cadastrado"}.`;
     } catch (error) {
         if (session !== tokens) return;
         if (error.status === 401) {
@@ -301,15 +377,16 @@ itemForm.addEventListener("submit", async (event) => {
         }
         const rejected = error.status >= 400 && error.status < 500;
         itemNeedsReview = !rejected;
+        if (editingId && !rejected) uncertainEditFields = Object.keys(data);
         itemFormStatus.textContent = rejected
             ? error.message
-            : "Não foi possível confirmar o cadastro. Consulte o estoque antes de enviar novamente.";
+            : "Não foi possível confirmar a gravação. Consulte o estoque antes de enviar novamente.";
         return;
     } finally {
         pendingRequest = null;
         updateControls();
     }
-    void loadPage(filters.order === "desc" ? 1 : page, filters);
+    void loadPage(!editingId && filters.order === "desc" ? 1 : page, filters);
 });
 
 logout.addEventListener("click", async () => {

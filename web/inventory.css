@@ -143,6 +143,21 @@ button.secondary {
     color: #142c2b;
 }
 
+.edit-item {
+    background: transparent;
+    color: #176453;
+    border: 0;
+    padding: 0;
+    text-align: left;
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+}
+
+.edit-item:enabled:not([aria-disabled="true"]):hover {
+    background: transparent;
+    color: #0e4d40;
+}
+
 button:enabled:not([aria-disabled="true"]):hover {
     background: #0e4d40;
     color: #fff;
