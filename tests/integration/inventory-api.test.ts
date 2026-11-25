@@ -1,5 +1,6 @@
 import { app } from "@src/app.js";
 import { prisma } from "@src/lib/prisma.js";
+import { TokenService } from "@src/shared/services/token.service.js";
 import { Bcrypt } from "@src/shared/utils/bcrypt.js";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -122,6 +123,31 @@ databaseSuite("inventory API integration", () => {
             .send({ refreshToken: login.body.refreshToken });
         expect(refresh.status).toBe(401);
         expect(refresh.body.error.code).toBe("REFRESH_TOKEN_INVALID");
+    });
+
+    it("matches the full email address at login", async () => {
+        await prisma.user.create({
+            data: {
+                username: "lab-team",
+                email: "lab-team@example.com",
+                passwordHash: await Bcrypt.hashPassword("other-test-password"),
+            },
+        });
+        const password = "inventory-test-password";
+        const user = await prisma.user.create({
+            data: {
+                username: "lab_team",
+                email: "Lab_Team@example.com",
+                passwordHash: await Bcrypt.hashPassword(password),
+            },
+        });
+
+        const { body } = await request(app)
+            .post("/auth/login")
+            .send({ email: "lab_team@example.com", password })
+            .expect(200);
+
+        expect(TokenService.verifyAccess(body.accessToken).sub).toBe(String(user.id));
     });
 
     it("rejects nested Prisma relation input", async () => {

@@ -19,19 +19,14 @@ export interface AuthRepository {
     deleteExpiredRefreshTokens(now: Date): Promise<void>;
 }
 
-const authUserSelect = {
-    id: true,
-    email: true,
-    passwordHash: true,
-    role: true,
-} as const;
-
 export class PrismaAuthRepository implements AuthRepository {
-    findUserByEmail(email: string) {
-        return prisma.user.findFirst({
-            where: { email: { equals: email, mode: "insensitive" } },
-            select: authUserSelect,
-        });
+    async findUserByEmail(email: string) {
+        const [user] = await prisma.$queryRaw<AuthUser[]>`
+            SELECT "id", "email", "passwordHash", "role"
+            FROM "User"
+            WHERE LOWER("email") = LOWER(${email})
+        `;
+        return user ?? null;
     }
 
     findUserById(id: number) {
