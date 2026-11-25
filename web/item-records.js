@@ -62,7 +62,9 @@ function renderLoan(loan) {
     const identifier = document.createElement("strong");
     identifier.textContent = `Empréstimo #${loan.id}`;
     const details = document.createElement("p");
-    details.textContent = `Cliente #${loan.clientId} · ${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
+    const clientId = `Cliente #${loan.clientId}`;
+    const client = loan.client?.name ? `${loan.client.name} (${clientId})` : clientId;
+    details.textContent = `${client} · ${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
     const due = document.createElement("p");
     due.append("Prazo de devolução ", renderDate(loan.dueDate));
     entry.append(identifier, details, due);

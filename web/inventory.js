@@ -198,6 +198,7 @@ async function fetchItemRecords(kind, id, page, pageSize, signal) {
     if (!adjustments) {
         query.set("status", "active");
         query.set("itemId", id);
+        query.set("include", "client");
     }
     const path = adjustments ? `/item/${id}/adjustments` : "/loan";
     try {

@@ -42,7 +42,7 @@ A API usa `http://localhost:3000` por padrão. Abra [o estoque](http://localhost
 
 Selecione o nome de um item para editar seu nome, categoria ou localização. Para alterar a quantidade total, informe o motivo do ajuste.
 
-Abra **Empréstimos ativos** na edição do item para consultar as unidades emprestadas, os clientes por ID e os prazos de devolução.
+Abra **Empréstimos ativos** na edição do item para consultar as unidades emprestadas, os nomes e IDs dos clientes e os prazos de devolução.
 
 Administradores podem abrir **Histórico de ajustes** na edição do item para consultar quantidades, motivos, datas e contas responsáveis.
 
