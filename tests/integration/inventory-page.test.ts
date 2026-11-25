@@ -27,5 +27,9 @@ describe("inventory page", () => {
             .get("/inventario/item-records.js")
             .expect(200)
             .expect("Content-Type", /javascript/);
+        await request(app)
+            .get("/inventario/loan-registration.js")
+            .expect(200)
+            .expect("Content-Type", /javascript/);
     });
 });

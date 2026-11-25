@@ -102,10 +102,41 @@
                         </fieldset>
                         <p id="item-form-status" role="status"></p>
                         <div class="dialog-actions">
+                            <button id="open-loan-registration" class="secondary" type="button" aria-haspopup="dialog" hidden>Registrar empréstimo</button>
                             <button id="open-active-loans" class="secondary" type="button" aria-haspopup="dialog" hidden>Empréstimos ativos</button>
                             <button id="open-adjustment-history" class="secondary" type="button" aria-haspopup="dialog" hidden>Histórico de ajustes</button>
                             <button id="cancel-item" class="secondary" type="button">Voltar ao estoque</button>
                             <button id="save-item" type="submit">Salvar item</button>
+                        </div>
+                    </form>
+                </dialog>
+                <dialog id="loan-dialog" class="panel" aria-labelledby="loan-dialog-title">
+                    <h2 id="loan-dialog-title">Registrar empréstimo</h2>
+                    <p id="loan-item"></p>
+                    <p id="loan-stock" role="status"></p>
+                    <form id="loan-client-search">
+                        <label for="loan-client-query">Nome ou e-mail do cliente</label>
+                        <input id="loan-client-query" type="search" maxlength="100" required />
+                        <button id="loan-search-button" class="secondary" type="submit">Buscar cliente</button>
+                        <p id="loan-client-results" role="status"></p>
+                    </form>
+                    <form id="loan-form" method="dialog">
+                        <fieldset id="loan-fields" aria-label="Dados do empréstimo">
+                            <label for="loan-client">Cliente</label>
+                            <select id="loan-client" required>
+                                <option value="">Selecione um cliente</option>
+                            </select>
+                            <label for="loan-quantity">Quantidade emprestada</label>
+                            <input id="loan-quantity" type="number" min="1" step="1" value="1" required />
+                            <label for="loan-due">Prazo de devolução</label>
+                            <input id="loan-due" type="datetime-local" required />
+                        </fieldset>
+                        <p id="loan-attempt-summary" hidden></p>
+                        <p id="loan-status" role="status"></p>
+                        <div class="dialog-actions">
+                            <button id="close-loan-dialog" class="secondary" type="button">Voltar ao item</button>
+                            <button id="discard-loan-attempt" class="secondary" type="button" hidden>Descartar tentativa</button>
+                            <button id="save-loan" type="submit">Registrar empréstimo</button>
                         </div>
                     </form>
                 </dialog>

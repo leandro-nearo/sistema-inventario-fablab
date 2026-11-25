@@ -1,4 +1,5 @@
 import { createItemRecords } from "./item-records.js";
+import { createLoanRegistration } from "./loan-registration.js";
 
 const login = document.querySelector("#login");
 const loginForm = document.querySelector("#login-form");
@@ -39,8 +40,11 @@ const cancelItem = document.querySelector("#cancel-item");
 const itemResult = document.querySelector("#item-result");
 const openHistory = document.querySelector("#open-adjustment-history");
 const openLoans = document.querySelector("#open-active-loans");
+const openLoanRegistration = document.querySelector("#open-loan-registration");
+const loanDialog = document.querySelector("#loan-dialog");
 const recordsDialog = document.querySelector("#item-records");
 const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, returnLoan, cancelItem);
+const loanRegistration = createLoanRegistration(readLoanRegistration, registerLoan);
 
 const pageSize = 20;
 const defaultFilters = { search: "", availability: "", order: "desc" };
@@ -55,7 +59,17 @@ let itemListRefreshPage = null;
 let editingItem = null;
 let uncertainEditFields = [];
 
-async function request(path, { data, method = data ? "POST" : "GET", accessToken, signal } = {}) {
+async function request(
+    path,
+    {
+        data,
+        method = data ? "POST" : "GET",
+        accessToken,
+        signal,
+        idempotencyKey,
+        withServerTime,
+    } = {},
+) {
     let response;
     try {
         const timeout = AbortSignal.timeout(10_000);
@@ -64,6 +78,7 @@ async function request(path, { data, method = data ? "POST" : "GET", accessToken
             headers: {
                 ...(data ? { "Content-Type": "application/json" } : {}),
                 ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
             },
             body: data ? JSON.stringify(data) : undefined,
             cache: "no-store",
@@ -75,7 +90,11 @@ async function request(path, { data, method = data ? "POST" : "GET", accessToken
 
     if (response.status === 204) return;
     const body = await response.json().catch(() => null);
-    if (response.ok && body !== null) return body;
+    if (response.ok && body !== null) {
+        return withServerTime
+            ? { item: body, serverTime: Date.parse(response.headers.get("Date")) }
+            : body;
+    }
     throw Object.assign(new Error(body?.error?.message || "Falha na consulta. Tente novamente."), {
         status: response.status,
         code: body?.error?.code,
@@ -109,7 +128,8 @@ function updateControls() {
     itemFields.disabled = saving;
     openHistory.hidden = !editingItem || tokens?.role !== "ADMIN";
     openLoans.hidden = !editingItem;
-    for (const button of [openHistory, openLoans]) {
+    openLoanRegistration.hidden = !editingItem;
+    for (const button of [openHistory, openLoans, openLoanRegistration]) {
         button.setAttribute("aria-disabled", String(loading));
     }
     updateAdjustmentControls();
@@ -139,12 +159,15 @@ function resetItemDraft() {
 }
 
 function showLogin(message, preserveDraft = false) {
-    retainedDraft = preserveDraft ? { userId: tokens.userId, reopen: itemDialog.open } : null;
+    retainedDraft = preserveDraft
+        ? { userId: tokens.userId, reopen: itemDialog.open, reopenLoan: loanDialog.open }
+        : null;
     tokens = null;
     page = 1;
     filters = defaultFilters;
     hasNext = false;
     searchForm.reset();
+    loanRegistration.close();
     itemRecords.close();
     itemDialog.close();
     if (!retainedDraft) resetItemDraft();
@@ -216,14 +239,47 @@ async function fetchItemRecords(kind, id, { page, pageSize, loanStatus, signal }
     }
 }
 
-async function returnLoan(id) {
+async function readLoanRegistration(path, options) {
+    const session = tokens;
+    if (!session) throw new Error("Sua sessão expirou.");
+    try {
+        return await requestWithSession(path, session, options);
+    } catch (error) {
+        if (
+            error.status === 401 &&
+            session === tokens &&
+            !options.signal.aborted &&
+            loanDialog.open
+        ) {
+            showLogin("Sua sessão expirou. Entre novamente.", true);
+        }
+        throw error;
+    }
+}
+
+function returnLoan(id) {
+    return writeLoan(`/loan/${id}/return`, { method: "POST" }, "unavailable");
+}
+
+async function registerLoan(data, idempotencyKey) {
+    const loan = await writeLoan("/loan", { data, idempotencyKey }, "available");
+    const outcome = loan.cancelledAt
+        ? "já cancelado"
+        : loan.returnDate
+          ? "já devolvido"
+          : "registrado";
+    itemFormStatus.textContent = `Empréstimo #${loan.id} ${outcome}.`;
+}
+
+async function writeLoan(path, options, affectedAvailability) {
     const session = tokens;
     if (!session || pendingRequest) throw new Error("Aguarde a operação atual.");
-    itemListRefreshPage = filters.availability === "unavailable" ? 1 : page;
-    pendingRequest = requestWithSession(`/loan/${id}/return`, session, { method: "POST" });
+    if (filters.availability === affectedAvailability) itemListRefreshPage = 1;
+    else itemListRefreshPage ??= page;
+    pendingRequest = requestWithSession(path, session, options);
     updateControls();
     try {
-        await pendingRequest;
+        return await pendingRequest;
     } catch (error) {
         if (error.status === 401 && session === tokens) {
             showLogin("Sua sessão expirou. Entre novamente.", true);
@@ -328,6 +384,7 @@ loginForm.addEventListener("submit", async (event) => {
         const session = { ...credentials, userId: getSessionUserId(credentials.accessToken) };
         const sameAccount = retainedDraft?.userId === session.userId;
         const reopenItem = sameAccount && retainedDraft.reopen;
+        const reopenLoan = reopenItem && retainedDraft.reopenLoan;
         if (!sameAccount) resetItemDraft();
         retainedDraft = null;
         tokens = session;
@@ -337,7 +394,10 @@ loginForm.addEventListener("submit", async (event) => {
         logout.hidden = false;
         inventoryTitle.focus();
         void loadPage(1, filters).then(() => {
-            if (reopenItem && session === tokens) openItemDialog();
+            if (reopenItem && session === tokens) {
+                openItemDialog();
+                if (reopenLoan) openLoanDialog();
+            }
         });
     } catch (error) {
         loginStatus.textContent = error.message;
@@ -438,6 +498,14 @@ function selectItem(item) {
 }
 
 createItem.addEventListener("click", () => selectItem(null));
+
+function openLoanDialog() {
+    if (editingItem && tokens && !pendingRequest && itemDialog.open) {
+        loanRegistration.open(editingItem.original, tokens.userId);
+    }
+}
+
+openLoanRegistration.addEventListener("click", openLoanDialog);
 
 for (const [button, kind] of [
     [openHistory, "adjustments"],

@@ -97,11 +97,14 @@ select {
 }
 
 .login input,
-#item-form input {
+#item-form input,
+#loan-fields input,
+#loan-fields select {
     margin-bottom: 1rem;
 }
 
 #item-dialog,
+#loan-dialog,
 #item-records {
     box-sizing: border-box;
     width: min(28rem, calc(100% - 2rem));
@@ -112,7 +115,8 @@ select {
     width: min(36rem, calc(100% - 2rem));
 }
 
-#item-dialog h2 {
+#item-dialog h2,
+#loan-dialog h2 {
     margin: 0 0 1rem;
 }
 
@@ -121,6 +125,7 @@ select {
 }
 
 #item-dialog::backdrop,
+#loan-dialog::backdrop,
 #item-records::backdrop {
     background: #142c2b99;
 }
@@ -160,11 +165,20 @@ select {
     margin: 0.25rem 0;
 }
 
-#item-fields {
+#item-fields,
+#loan-fields {
     min-width: 0;
     border: 0;
     margin: 0;
     padding: 0;
+}
+
+#loan-item {
+    overflow-wrap: anywhere;
+}
+
+#loan-search-button {
+    margin-top: 0.5rem;
 }
 
 #item-registered-quantity {
@@ -240,6 +254,8 @@ button[aria-disabled="true"] {
 #login-status:empty,
 #item-result:empty,
 #records-result:empty,
+#loan-stock:empty,
+#loan-status:empty,
 #item-form-status:empty {
     margin: 0;
 }
