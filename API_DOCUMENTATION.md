@@ -96,7 +96,7 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 
 | Método | Rota | Papel | Corpo/consulta | Resposta |
 |---|---|---|---|---|
-| `POST` | `/loan` | `ADMIN`, `OPERATOR` | `clientId`, `itemId`, `loanDate`, `dueDate`, `loanQuantity`, `returnDate?` | `201 Loan` |
+| `POST` | `/loan` | `ADMIN`, `OPERATOR` | `clientId`, `itemId`, `loanDate`, `dueDate`, `loanQuantity`, `returnDate?`; cabeçalho opcional `Idempotency-Key` | `201 Loan` na criação, `200 Loan` na repetição |
 | `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?`, `include?` | `200 LoanListEntry[]` |
 | `GET` | `/loan/:id` | Autenticado | — | `200 Loan` |
 | `POST` | `/loan/:id/return` | `ADMIN`, `OPERATOR` | — | `200 Loan` |
@@ -108,6 +108,8 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 Use `GET /loan?itemId=42&status=active` para listar empréstimos ativos do item 42. A consulta retorna uma lista vazia quando nenhum empréstimo corresponde aos filtros.
 
 Com `include=client`, cada empréstimo da lista também contém `client: { name }`. O campo `clientId` identifica o cliente em ambas as consultas.
+
+Ao criar um empréstimo, envie um UUID novo em `Idempotency-Key` e mantenha a mesma chave e os mesmos dados se precisar reenviar. A repetição pela mesma conta retorna o estado atual do empréstimo já criado. Usar a chave com outros dados válidos retorna `409 IDEMPOTENCY_KEY_CONFLICT`. Uma tentativa rejeitada antes da criação permite reutilizar a chave.
 
 `POST /loan/:id/return` registra a devolução com a data e hora do servidor. Se o empréstimo já foi devolvido, retorna o registro com a data e a conta responsável originais. Um empréstimo cancelado retorna `409 LOAN_CANCELLED`. Se a data do empréstimo ainda estiver no futuro, retorna `400 INVALID_LOAN_DATES`.
 

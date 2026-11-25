@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import type {
     CreateLoanDTO,
+    LoanCreationResult,
     LoanDTO,
     LoanListEntryDTO,
     LoanListOptions,
@@ -9,11 +11,13 @@ import { AppError } from "@src/shared/errors/app.error.js";
 import { InsufficientStockError } from "@src/shared/errors/insufficient-stock.error.js";
 import {
     LoanCancelledError,
+    LoanCreationKeyConflictError,
     LoanDateOrderError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
 import { CreateLoanValidator } from "./input-validation/create-loan.validator.js";
 import {
+    type LoanCreateData,
     type LoanRepository,
     type LoanUpdateData,
     PrismaLoanRepository,
@@ -26,21 +30,46 @@ function loanNotFound() {
 export class LoanService {
     constructor(private readonly loanRepository: LoanRepository = new PrismaLoanRepository()) {}
 
-    async create(data: CreateLoanDTO, actorId: number): Promise<LoanDTO> {
+    async create(data: CreateLoanDTO, actorId: number, key?: string): Promise<LoanCreationResult> {
         CreateLoanValidator.validate(data);
 
+        const loan: LoanCreateData = {
+            loanDate: new Date(data.loanDate),
+            dueDate: new Date(data.dueDate),
+            returnDate: data.returnDate ? new Date(data.returnDate) : null,
+            loanQuantity: data.loanQuantity,
+            clientId: data.clientId,
+            itemId: data.itemId,
+            createdById: actorId,
+            returnedById: data.returnDate ? actorId : null,
+        };
         try {
-            return await this.loanRepository.createWithStockReservation({
-                loanDate: new Date(data.loanDate),
-                dueDate: new Date(data.dueDate),
-                returnDate: data.returnDate ? new Date(data.returnDate) : null,
-                loanQuantity: data.loanQuantity,
-                clientId: data.clientId,
-                itemId: data.itemId,
-                createdById: actorId,
-                returnedById: data.returnDate ? actorId : null,
-            });
+            const request = key
+                ? {
+                      key,
+                      requestHash: createHash("sha256")
+                          .update(
+                              JSON.stringify([
+                                  loan.clientId,
+                                  loan.itemId,
+                                  loan.loanDate,
+                                  loan.dueDate,
+                                  loan.loanQuantity,
+                                  loan.returnDate,
+                              ]),
+                          )
+                          .digest("hex"),
+                  }
+                : undefined;
+            return await this.loanRepository.createWithStockReservation(loan, request);
         } catch (error) {
+            if (error instanceof LoanCreationKeyConflictError) {
+                throw new AppError(
+                    "A chave de cadastro já foi usada com outros dados.",
+                    409,
+                    "IDEMPOTENCY_KEY_CONFLICT",
+                );
+            }
             if (error instanceof InsufficientStockError) {
                 throw new AppError(
                     MESSAGES.LOAN.VALIDATION.QUANTITY_TOO_BIG(error.availableQuantity),

@@ -20,6 +20,8 @@ export type LoanListEntryDTO = LoanDTO & {
     client?: { name: string };
 };
 
+export type LoanCreationResult = { loan: LoanDTO; created: boolean };
+
 export type LoanListOptions = Pagination & {
     status: "all" | "active" | "returned" | "cancelled" | "overdue";
     itemId?: number;

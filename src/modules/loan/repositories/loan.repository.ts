@@ -3,10 +3,11 @@ import { prisma } from "@src/lib/prisma.js";
 import { InsufficientStockError } from "@src/shared/errors/insufficient-stock.error.js";
 import {
     LoanCancelledError,
+    LoanCreationKeyConflictError,
     LoanDateOrderError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
-import type { LoanListEntryDTO, LoanListOptions } from "../loan.dtos.js";
+import type { LoanCreationResult, LoanListEntryDTO, LoanListOptions } from "../loan.dtos.js";
 
 export type LoanCreateData = {
     clientId: number;
@@ -25,8 +26,13 @@ export type LoanUpdateData = {
     returnDate?: Date | null;
 };
 
+type LoanCreationRequest = { key: string; requestHash: string };
+
 export interface LoanRepository {
-    createWithStockReservation(data: LoanCreateData): Promise<Loan>;
+    createWithStockReservation(
+        data: LoanCreateData,
+        request?: LoanCreationRequest,
+    ): Promise<LoanCreationResult>;
     list(options: LoanListOptions): Promise<LoanListEntryDTO[]>;
     findById(id: number): Promise<Loan | null>;
     updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null>;
@@ -50,26 +56,56 @@ async function reserveStock(tx: Prisma.TransactionClient, itemId: number, quanti
 }
 
 export class PrismaLoanRepository implements LoanRepository {
-    async createWithStockReservation(data: LoanCreateData): Promise<Loan> {
-        return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-            const client = await tx.client.findUnique({
-                where: { id: data.clientId },
-                select: { id: true },
-            });
-            if (!client) throw new RelatedResourceNotFoundError("client");
+    async createWithStockReservation(
+        data: LoanCreateData,
+        request?: LoanCreationRequest,
+    ): Promise<LoanCreationResult> {
+        const creationKey = request && { userId: data.createdById, ...request };
+        return prisma.$transaction(
+            async (tx: Prisma.TransactionClient) => {
+                if (creationKey) {
+                    const { userId, key, requestHash } = creationKey;
+                    const lock = `loan-create:${userId}:${key}`;
+                    // Aguarde outra transação com a mesma chave antes de consultar a reserva.
+                    await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${lock}, 0))`;
+                    const existing = await tx.loanCreationKey.findUnique({
+                        where: { userId_key: { userId, key } },
+                        include: { loan: true },
+                    });
+                    if (existing) {
+                        if (existing.requestHash !== requestHash) {
+                            throw new LoanCreationKeyConflictError();
+                        }
+                        return { loan: existing.loan, created: false };
+                    }
+                }
 
-            if (data.returnDate === null) {
-                await reserveStock(tx, data.itemId, data.loanQuantity);
-            } else {
-                const item = await tx.item.findUnique({
-                    where: { id: data.itemId },
+                const client = await tx.client.findUnique({
+                    where: { id: data.clientId },
                     select: { id: true },
                 });
-                if (!item) throw new RelatedResourceNotFoundError("item");
-            }
+                if (!client) throw new RelatedResourceNotFoundError("client");
 
-            return tx.loan.create({ data });
-        });
+                if (data.returnDate === null) {
+                    await reserveStock(tx, data.itemId, data.loanQuantity);
+                } else {
+                    const item = await tx.item.findUnique({
+                        where: { id: data.itemId },
+                        select: { id: true },
+                    });
+                    if (!item) throw new RelatedResourceNotFoundError("item");
+                }
+
+                const loan = await tx.loan.create({ data });
+                if (creationKey) {
+                    await tx.loanCreationKey.create({
+                        data: { ...creationKey, loanId: loan.id },
+                    });
+                }
+                return { loan, created: true };
+            },
+            creationKey ? { isolationLevel: "ReadCommitted" } : undefined,
+        );
     }
 
     list({ skip, take, status, itemId, includeClient }: LoanListOptions) {

@@ -527,6 +527,84 @@ databaseSuite("inventory API integration", () => {
         }
     });
 
+    it("reserves stock once for concurrent requests with the same loan creation key", async () => {
+        const user = await prisma.user.findUniqueOrThrow({
+            where: { email: "admin@example.com" },
+        });
+        const { accessToken } = TokenService.generate({ userId: String(user.id) });
+        const client = await prisma.client.create({
+            data: { name: "Cliente", email: "client@example.com" },
+        });
+        const item = await prisma.item.create({
+            data: { name: "Arduino", location: "A1", totalQuantity: 1, availableQuantity: 1 },
+        });
+        const loan = {
+            clientId: client.id,
+            itemId: item.id,
+            loanDate: "2020-09-01",
+            dueDate: "2020-09-20",
+            loanQuantity: 1,
+        };
+        const key = "4bd61a35-424a-4105-99d0-e7892f44a5b8";
+        const retryKey = "f776f2e0-93e3-4a24-aad5-b2136a001246";
+        const post = (creationKey: string) =>
+            request(app)
+                .post("/loan")
+                .set("Authorization", `Bearer ${accessToken}`)
+                .set("Idempotency-Key", creationKey);
+
+        await post("invalid").send(loan).expect(400);
+        const responses = await Promise.all([
+            post(key).send(loan),
+            post(key.toUpperCase()).send({ ...loan, loanDate: "2020-09-01T00:00:00Z" }),
+        ]);
+        expect(responses.map(({ status }) => status).sort()).toEqual([200, 201]);
+        const [first, second] = responses;
+        expect(first.body).toEqual(second.body);
+        expect(first.body).toMatchObject({ itemId: item.id, loanQuantity: 1, returnDate: null });
+        expect(await prisma.loan.count({ where: { itemId: item.id } })).toBe(1);
+        await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
+            availableQuantity: 0,
+        });
+
+        const conflict = await post(key)
+            .send({ ...loan, dueDate: "2020-09-21" })
+            .expect(409);
+        expect(conflict.body.error.code).toBe("IDEMPOTENCY_KEY_CONFLICT");
+        await post(retryKey).send(loan).expect(400);
+
+        await request(app)
+            .post(`/loan/${first.body.id}/return`)
+            .set("Authorization", `Bearer ${accessToken}`)
+            .expect(200);
+        const replay = await post(key).send(loan).expect(200);
+        expect(replay.body.id).toBe(first.body.id);
+        expect(replay.body.returnDate).not.toBeNull();
+        const newLoan = await post(retryKey).send(loan).expect(201);
+        expect(newLoan.body.id).not.toBe(first.body.id);
+        expect(await prisma.loan.count({ where: { itemId: item.id } })).toBe(2);
+
+        const operator = await prisma.user.create({
+            data: {
+                username: "operator",
+                email: "operator@example.com",
+                passwordHash: user.passwordHash,
+                role: "OPERATOR",
+            },
+        });
+        const operatorToken = TokenService.generate({ userId: String(operator.id) }).accessToken;
+        const fromAnotherAccount = await request(app)
+            .post("/loan")
+            .set("Authorization", `Bearer ${operatorToken}`)
+            .set("Idempotency-Key", key)
+            .send({ ...loan, returnDate: loan.dueDate })
+            .expect(201);
+        expect(fromAnotherAccount.body.createdById).toBe(operator.id);
+        expect(fromAnotherAccount.body.id).not.toBe(first.body.id);
+        const original = await post(key).send(loan).expect(200);
+        expect(original.body.id).toBe(first.body.id);
+    });
+
     it("returns the same error for all actions on a missing loan", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const path = "/loan/1";

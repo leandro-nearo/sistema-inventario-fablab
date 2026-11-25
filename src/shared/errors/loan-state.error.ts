@@ -12,6 +12,13 @@ export class LoanCancelledError extends Error {
     }
 }
 
+export class LoanCreationKeyConflictError extends Error {
+    constructor() {
+        super("Loan creation key already has a different request");
+        this.name = "LoanCreationKeyConflictError";
+    }
+}
+
 export class LoanDateOrderError extends Error {
     constructor(readonly field: "dueDate" | "returnDate") {
         super(`${field} precedes loanDate`);

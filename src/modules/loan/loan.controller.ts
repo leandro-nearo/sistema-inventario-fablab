@@ -5,14 +5,14 @@ import { DateValidator } from "@src/shared/utils/validators/date.validator.js";
 import { IdValidator } from "@src/shared/utils/validators/id.validator.js";
 import { paginationFrom } from "@src/shared/validation/fields.js";
 import type { Request, Response } from "express";
-import { loanListQuerySchema } from "./loan.schemas.js";
+import { loanCreationKeySchema, loanListQuerySchema } from "./loan.schemas.js";
 
 class LoanController {
     async create(req: Request, res: Response) {
         const data: CreateLoanDTO = req.body;
-
-        const loan = await loanService.create(data, Number(req.userId));
-        return res.status(201).json(loan);
+        const key = loanCreationKeySchema.parse(req.get("Idempotency-Key"));
+        const { loan, created } = await loanService.create(data, Number(req.userId), key);
+        return res.status(created ? 201 : 200).json(loan);
     }
 
     async list(req: Request, res: Response) {

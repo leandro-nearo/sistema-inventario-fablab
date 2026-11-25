@@ -591,6 +591,13 @@ paths:
       summary: Cria um empréstimo e reserva estoque
       security:
         - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: UUID por cadastro. Repetir a chave e os mesmos dados com a mesma conta retorna o empréstimo já criado.
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -598,6 +605,12 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateLoanInput"
       responses:
+        "200":
+          description: Empréstimo já criado por esta conta com a mesma chave e os mesmos dados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
         "201":
           description: Empréstimo criado
           content:
@@ -608,6 +621,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: Chave já usada por esta conta com outros dados válidos (IDEMPOTENCY_KEY_CONFLICT)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
         "415":

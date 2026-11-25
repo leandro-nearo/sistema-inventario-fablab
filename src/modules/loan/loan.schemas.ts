@@ -6,6 +6,11 @@ import {
 } from "@src/shared/validation/fields.js";
 import { z } from "zod";
 
+export const loanCreationKeySchema = z
+    .uuid("O cabeçalho Idempotency-Key deve conter um UUID.")
+    .toLowerCase()
+    .optional();
+
 export const createLoanSchema = z
     .object({
         clientId: idSchema,
