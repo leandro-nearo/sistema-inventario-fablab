@@ -46,9 +46,9 @@ Use **Registrar empréstimo** na edição do item. Busque o cliente pelo nome ou
 
 Quando o cliente ainda não tiver cadastro, abra **Cadastrar cliente** no próprio empréstimo. Um e-mail já cadastrado aparece para conferência e seleção.
 
-Abra **Empréstimos ativos** na edição do item para consultar as unidades emprestadas, os nomes e IDs dos clientes e os prazos de devolução.
+Abra **Empréstimos do item** na edição para consultar as unidades emprestadas, os nomes e IDs dos clientes e os prazos de devolução.
 
-No filtro **Situação dos empréstimos**, selecione **Atrasados** para ver apenas os empréstimos ativos cujo prazo de devolução já passou.
+O filtro **Situação dos empréstimos** abre em **Ativos**. Use **Atrasados** para ver os prazos vencidos e **Devolvidos**, **Cancelados** ou **Todos** para consultar o histórico com as datas de devolução e cancelamento.
 
 Na tela principal do estoque, **Empréstimos atrasados** reúne os empréstimos vencidos de todos os itens, do prazo mais antigo ao mais recente.
 

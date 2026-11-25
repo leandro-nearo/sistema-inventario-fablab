@@ -14,6 +14,13 @@ const pageLabel = document.querySelector("#records-page");
 
 const pageSize = 10;
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
+const emptyLoanMessages = {
+    all: "Nenhum empréstimo registrado.",
+    active: "Nenhum empréstimo ativo.",
+    overdue: "Nenhum empréstimo atrasado.",
+    returned: "Nenhum empréstimo devolvido.",
+    cancelled: "Nenhum empréstimo cancelado.",
+};
 const views = {
     adjustments: {
         title: "Histórico de ajustes",
@@ -27,11 +34,10 @@ const views = {
         render: renderAdjustment,
     },
     loans: {
-        title: "Empréstimos ativos",
+        title: "Empréstimos do item",
         region: "Registros de empréstimo",
-        pagination: "Páginas dos empréstimos ativos",
+        pagination: "Páginas dos empréstimos do item",
         loading: "Carregando empréstimos…",
-        empty: "Nenhum empréstimo ativo.",
         end: "Você chegou ao fim da lista.",
         singular: "empréstimo",
         plural: "empréstimos",
@@ -44,6 +50,12 @@ function renderDate(value) {
     date.dateTime = value;
     date.textContent = dateFormat.format(new Date(value));
     return date;
+}
+
+function renderLoanDate(label, value) {
+    const details = document.createElement("p");
+    details.append(label, renderDate(value));
+    return details;
 }
 
 function renderAdjustment(adjustment) {
@@ -68,16 +80,21 @@ function renderLoan(loan, confirmReturn) {
     const details = document.createElement("p");
     const clientId = `Cliente #${loan.clientId}`;
     const client = loan.client?.name ? `${loan.client.name} (${clientId})` : clientId;
-    details.textContent = `${client} · ${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
-    const due = document.createElement("p");
-    due.append("Prazo de devolução ", renderDate(loan.dueDate));
+    const closed = loan.returnDate || loan.cancelledAt;
+    const quantity = `${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
+    details.textContent = `${client} · ${quantity}${closed ? "" : " · Ativo"}`;
+    entry.append(identifier, details, renderLoanDate("Prazo de devolução ", loan.dueDate));
+    if (loan.returnDate) entry.append(renderLoanDate("Devolvido em ", loan.returnDate));
+    if (loan.cancelledAt) entry.append(renderLoanDate("Cancelado em ", loan.cancelledAt));
+    if (closed) return entry;
+
     const returnButton = document.createElement("button");
     returnButton.type = "button";
     returnButton.className = "secondary";
     returnButton.textContent = "Registrar devolução";
     returnButton.setAttribute("aria-label", `Registrar devolução do empréstimo #${loan.id}`);
     returnButton.addEventListener("click", () => void confirmReturn(loan));
-    entry.append(identifier, details, due, returnButton);
+    entry.append(returnButton);
     return entry;
 }
 
@@ -147,8 +164,7 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
             region.scrollTop = 0;
             if (focusedEntry) (region.hidden ? closeButton : region).focus({ preventScroll: true });
             pagination.hidden = page === 1 && !hasNext;
-            const emptyFirstPage =
-                loanStatus === "overdue" ? "Nenhum empréstimo atrasado." : view.empty;
+            const emptyFirstPage = loanStatus ? emptyLoanMessages[loanStatus] : view.empty;
             const emptyMessage = page === 1 ? emptyFirstPage : "Nenhum registro nesta página.";
             status.textContent = records.length
                 ? `${records.length} ${records.length === 1 ? view.singular : view.plural} nesta página.`

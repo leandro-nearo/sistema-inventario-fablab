@@ -106,7 +106,7 @@
                         <p id="item-form-status" role="status"></p>
                         <div class="dialog-actions">
                             <button id="open-loan-registration" class="secondary" type="button" aria-haspopup="dialog" hidden>Registrar empréstimo</button>
-                            <button id="open-active-loans" class="secondary" type="button" aria-haspopup="dialog" hidden>Empréstimos ativos</button>
+                            <button id="open-item-loans" class="secondary" type="button" aria-haspopup="dialog" hidden>Empréstimos do item</button>
                             <button id="open-adjustment-history" class="secondary" type="button" aria-haspopup="dialog" hidden>Histórico de ajustes</button>
                             <button id="cancel-item" class="secondary" type="button">Voltar ao estoque</button>
                             <button id="save-item" type="submit">Salvar item</button>
@@ -169,8 +169,11 @@
                     <div id="loan-records-filters" hidden>
                         <label for="loan-records-status">Situação dos empréstimos</label>
                         <select id="loan-records-status">
-                            <option value="active">Todos os ativos</option>
+                            <option value="active">Ativos</option>
+                            <option value="all">Todos</option>
                             <option value="overdue">Atrasados</option>
+                            <option value="returned">Devolvidos</option>
+                            <option value="cancelled">Cancelados</option>
                         </select>
                     </div>
                     <p id="records-result" role="status"></p>
