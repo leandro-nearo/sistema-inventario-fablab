@@ -365,21 +365,33 @@ async function loadPage(requestedPage, requestedFilters) {
         order !== filters.order;
     const query = new URLSearchParams({ page: requestedPage, pageSize, search, order });
     if (availability) query.set("availability", availability);
-    pendingRequest = requestWithSession(`/item?${query}`, session, { withPageInfo: true });
+    const requestPage = () => requestWithSession(`/item?${query}`, session, { withPageInfo: true });
+    pendingRequest = requestPage();
     updateControls();
     inventoryStatus.textContent = "Carregando itens…";
 
     try {
-        const { records: items, hasNext: nextPage } = await pendingRequest;
+        let response = await pendingRequest;
         if (session !== tokens) return;
         void loadAccountRole(session);
-        if (items.length === 0 && requestedPage > page && !filterChanged) {
-            hasNext = false;
-            inventoryStatus.textContent = "Você chegou ao fim da lista.";
-            return;
+        let loadedPage = requestedPage;
+        if (response.records.length === 0 && !filterChanged) {
+            if (requestedPage > page) {
+                hasNext = false;
+                inventoryStatus.textContent = "Você chegou ao fim da lista.";
+                return;
+            }
+            if (requestedPage > 1) {
+                loadedPage = 1;
+                query.set("page", "1");
+                pendingRequest = requestPage();
+                response = await pendingRequest;
+                if (session !== tokens) return;
+            }
         }
 
-        page = requestedPage;
+        const { records: items, hasNext: nextPage } = response;
+        page = loadedPage;
         filters = requestedFilters;
         hasNext = nextPage ?? items.length === pageSize;
         const focusedItemId = document.activeElement?.dataset?.itemId;
