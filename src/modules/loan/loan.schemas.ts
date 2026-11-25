@@ -41,6 +41,7 @@ export const loanListQuerySchema = z
             .transform(Number)
             .pipe(idSchema)
             .optional(),
-        include: z.literal("client").optional(),
+        include: z.enum(["client", "item", "client,item", "item,client"]).optional(),
+        order: z.enum(["recent", "due"]).default("recent"),
     })
     .strict();

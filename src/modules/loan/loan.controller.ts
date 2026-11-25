@@ -17,11 +17,14 @@ class LoanController {
 
     async list(req: Request, res: Response) {
         const query = loanListQuerySchema.parse(req.query);
+        const include = query.include?.split(",") ?? [];
         const loans = await loanService.list({
             ...paginationFrom(query),
             status: query.status,
             ...(query.itemId !== undefined ? { itemId: query.itemId } : {}),
-            includeClient: query.include === "client",
+            includeClient: include.includes("client"),
+            includeItem: include.includes("item"),
+            order: query.order,
         });
         return res.json(loans);
     }

@@ -571,10 +571,17 @@ paths:
             maximum: 2147483647
         - name: include
           in: query
-          description: Inclui o nome do cliente em cada empréstimo.
+          description: Inclui o nome do cliente, do item ou de ambos em cada empréstimo.
           schema:
             type: string
-            enum: [client]
+            enum: [client, item, "client,item", "item,client"]
+        - name: order
+          in: query
+          description: recent ordena da data de empréstimo mais nova à mais antiga. due ordena do vencimento mais antigo ao mais novo.
+          schema:
+            type: string
+            enum: [recent, due]
+            default: recent
       responses:
         "200":
           description: Empréstimos
@@ -1137,6 +1144,14 @@ components:
           properties:
             client:
               description: Presente quando a consulta inclui o cliente.
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+            item:
+              description: Presente quando a consulta inclui o item.
               type: object
               required: [name]
               additionalProperties: false

@@ -43,7 +43,7 @@ Endpoints de lista aceitam `page` (padrão 1) e `pageSize` (padrão 50, máximo 
 
 Quando disponível, `search` busca um trecho literal sem distinguir maiúsculas de minúsculas. Os filtros de categoria e localização comparam o valor completo da mesma forma.
 
-A lista de empréstimos e o histórico do cliente usam a data do empréstimo em ordem decrescente. O histórico de ajustes usa a data de criação em ordem decrescente. Em caso de empate, o maior ID vem primeiro.
+A lista de empréstimos e o histórico do cliente usam, por padrão, a data do empréstimo em ordem decrescente. O histórico de ajustes usa a data de criação em ordem decrescente. Em caso de empate nessas ordenações, o maior ID vem primeiro.
 
 ## Usuários
 
@@ -97,7 +97,7 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 | Método | Rota | Papel | Corpo/consulta | Resposta |
 |---|---|---|---|---|
 | `POST` | `/loan` | `ADMIN`, `OPERATOR` | `clientId`, `itemId`, `loanDate`, `dueDate`, `loanQuantity`, `returnDate?`; cabeçalho opcional `Idempotency-Key` | `201 Loan` na criação, `200 Loan` na repetição |
-| `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?`, `include?` | `200 LoanListEntry[]` |
+| `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?`, `include?`, `order?` | `200 LoanListEntry[]` |
 | `GET` | `/loan/:id` | Autenticado | — | `200 Loan` |
 | `POST` | `/loan/:id/return` | `ADMIN`, `OPERATOR` | — | `200 Loan` |
 | `PATCH` | `/loan/:id` | `ADMIN`, `OPERATOR` | `loanDate?`, `dueDate?`, `returnDate?` | `200 Loan` |
@@ -107,7 +107,9 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 
 Use `GET /loan?itemId=42&status=active` para listar empréstimos ativos do item 42. A consulta retorna uma lista vazia quando nenhum empréstimo corresponde aos filtros.
 
-Com `include=client`, cada empréstimo da lista também contém `client: { name }`. O campo `clientId` identifica o cliente em ambas as consultas.
+Use `include=client`, `include=item` ou `include=client,item` para acrescentar `client: { name }` e/ou `item: { name }` a cada empréstimo. Os campos `clientId` e `itemId` identificam os registros relacionados.
+
+`order=recent` é o padrão e ordena pela data do empréstimo, da mais nova à mais antiga, com maior ID primeiro em caso de empate. `order=due` mostra os vencimentos mais antigos primeiro. Em caso de empate no vencimento, o menor ID vem primeiro. Para consultar os atrasos de todo o estoque, use `GET /loan?status=overdue&include=client,item&order=due`.
 
 Ao criar um empréstimo, envie um UUID novo em `Idempotency-Key` e mantenha a mesma chave e os mesmos dados se precisar reenviar. A repetição pela mesma conta retorna o estado atual do empréstimo já criado. Usar a chave com outros dados válidos retorna `409 IDEMPOTENCY_KEY_CONFLICT`. Uma tentativa rejeitada antes da criação permite reutilizar a chave.
 
@@ -144,7 +146,7 @@ type Loan = {
   createdAt: string; updatedAt: string;
 };
 
-type LoanListEntry = Loan & { client?: { name: string } };
+type LoanListEntry = Loan & { client?: { name: string }; item?: { name: string } };
 ```
 
 ## Saúde

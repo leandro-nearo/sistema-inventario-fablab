@@ -752,6 +752,75 @@ databaseSuite("inventory API integration", () => {
         await request(app).get("/loan").query({ include: "client" }).expect(401);
     });
 
+    it("lists overdue loans by deadline with item and client names", async () => {
+        const user = await prisma.user.findUniqueOrThrow({
+            where: { email: "admin@example.com" },
+        });
+        const { accessToken } = TokenService.generate({ userId: String(user.id) });
+        const client = await prisma.client.create({
+            data: { name: "Oficina", email: "oficina@example.com" },
+        });
+        const arduino = await prisma.item.create({
+            data: { name: "Arduino", location: "A1", totalQuantity: 3, availableQuantity: 0 },
+        });
+        const sensor = await prisma.item.create({
+            data: { name: "Sensor", location: "B1", totalQuantity: 1, availableQuantity: 0 },
+        });
+        const data = { clientId: client.id, itemId: arduino.id, loanQuantity: 1 };
+        const newerDeadline = await prisma.loan.create({
+            data: { ...data, loanDate: new Date("2020-09-03"), dueDate: new Date("2020-09-10") },
+        });
+        const overdue = new Date("2020-09-05");
+        const earlier = await prisma.loan.create({
+            data: {
+                ...data,
+                itemId: sensor.id,
+                loanDate: new Date("2020-09-02"),
+                dueDate: overdue,
+            },
+        });
+        const tied = await prisma.loan.create({
+            data: { ...data, loanDate: new Date("2020-09-01"), dueDate: overdue },
+        });
+        const oldDate = new Date("2020-01-01");
+        await prisma.loan.createMany({
+            data: [
+                { ...data, loanDate: oldDate, dueDate: oldDate, returnDate: oldDate },
+                { ...data, loanDate: oldDate, dueDate: oldDate, cancelledAt: oldDate },
+                { ...data, loanDate: oldDate, dueDate: new Date("2090-01-01") },
+            ],
+        });
+
+        const list = () => request(app).get("/loan").set("Authorization", `Bearer ${accessToken}`);
+        const firstPage = await list()
+            .query({ status: "overdue", order: "due", include: "client,item", pageSize: 1 })
+            .expect(200);
+        expect(firstPage.body).toHaveLength(1);
+        expect(firstPage.body[0]).toMatchObject({ id: earlier.id, itemId: sensor.id });
+        expect(firstPage.body[0].client).toEqual({ name: "Oficina" });
+        expect(firstPage.body[0].item).toEqual({ name: "Sensor" });
+        const secondPage = await list()
+            .query({
+                status: "overdue",
+                order: "due",
+                include: "item,client",
+                page: 2,
+                pageSize: 1,
+            })
+            .expect(200);
+        expect(secondPage.body).toMatchObject([{ id: tied.id, item: { name: "Arduino" } }]);
+        const itemOnly = await list().query({ status: "overdue", include: "item" }).expect(200);
+        expect(itemOnly.body.map(({ id }: { id: number }) => id)).toEqual([
+            newerDeadline.id,
+            earlier.id,
+            tied.id,
+        ]);
+        expect(itemOnly.body[0]).not.toHaveProperty("client");
+        expect(itemOnly.body[0].item).toEqual({ name: "Arduino" });
+        await list().query({ include: "item,item" }).expect(400);
+        await list().query({ order: "unknown" }).expect(400);
+    });
+
     it("uses the ID to order history pages when dates are equal", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const client = await prisma.client.create({

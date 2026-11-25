@@ -108,7 +108,7 @@ export class PrismaLoanRepository implements LoanRepository {
         );
     }
 
-    list({ skip, take, status, itemId, includeClient }: LoanListOptions) {
+    list({ skip, take, status, itemId, includeClient, includeItem, order }: LoanListOptions) {
         const where: Prisma.LoanWhereInput =
             status === "active"
                 ? { returnDate: null, cancelledAt: null }
@@ -123,8 +123,14 @@ export class PrismaLoanRepository implements LoanRepository {
 
         return prisma.loan.findMany({
             where,
-            include: { client: includeClient ? { select: { name: true } } : false },
-            orderBy: [{ loanDate: "desc" }, { id: "desc" }],
+            include: {
+                client: includeClient ? { select: { name: true } } : false,
+                item: includeItem ? { select: { name: true } } : false,
+            },
+            orderBy:
+                order === "due"
+                    ? [{ dueDate: "asc" }, { id: "asc" }]
+                    : [{ loanDate: "desc" }, { id: "desc" }],
             skip,
             take,
         });
