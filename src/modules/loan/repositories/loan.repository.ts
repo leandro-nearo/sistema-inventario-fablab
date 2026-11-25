@@ -6,6 +6,7 @@ import {
     LoanCreationKeyConflictError,
     LoanDateOrderError,
     LoanRenewalError,
+    LoanVersionConflictError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
 import type { LoanCreationResult, LoanListEntryDTO, LoanListOptions } from "../loan.dtos.js";
@@ -41,7 +42,7 @@ export interface LoanRepository {
     updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null>;
     returnWithStock(id: number, actorId: number): Promise<Loan | null>;
     renewDueDate(id: number, data: LoanRenewalData): Promise<Loan | null>;
-    cancelWithStock(id: number, actorId: number): Promise<Loan | null>;
+    cancelWithStock(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<Loan | null>;
 }
 
 async function findLockedLoan(tx: Prisma.TransactionClient, id: number) {
@@ -182,7 +183,7 @@ export class PrismaLoanRepository implements LoanRepository {
                 ) {
                     return existing;
                 }
-                throw new LoanRenewalError("changed");
+                throw new LoanVersionConflictError();
             }
             if (dueDate <= existing.dueDate || dueDate.getTime() <= Date.now()) {
                 throw new LoanRenewalError("date");
@@ -251,7 +252,11 @@ export class PrismaLoanRepository implements LoanRepository {
         });
     }
 
-    async cancelWithStock(id: number, actorId: number): Promise<Loan | null> {
+    async cancelWithStock(
+        id: number,
+        actorId: number,
+        expectedUpdatedAt?: Date,
+    ): Promise<Loan | null> {
         return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             const existing = await findLockedLoan(tx, id);
 
@@ -260,6 +265,9 @@ export class PrismaLoanRepository implements LoanRepository {
             }
 
             if (existing.cancelledAt !== null) return existing;
+            if (expectedUpdatedAt && existing.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+                throw new LoanVersionConflictError();
+            }
 
             if (existing.returnDate === null) {
                 await tx.item.update({

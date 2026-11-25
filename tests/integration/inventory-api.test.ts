@@ -766,6 +766,67 @@ databaseSuite("inventory API integration", () => {
         expect(storedItem.availableQuantity).toBe(2);
     });
 
+    it("cancels the reviewed loan version and releases stock once", async () => {
+        const admin = await prisma.user.findUniqueOrThrow({
+            where: { email: "admin@example.com" },
+        });
+        const operator = await prisma.user.create({
+            data: {
+                username: "operator",
+                email: "operator@example.com",
+                passwordHash: admin.passwordHash,
+                role: "OPERATOR",
+            },
+        });
+        const authorization = (userId: number) => {
+            const { accessToken } = TokenService.generate({ userId: String(userId) });
+            return { Authorization: `Bearer ${accessToken}` };
+        };
+        const client = await prisma.client.create({
+            data: { name: "Cliente", email: "client@example.com" },
+        });
+        const item = await prisma.item.create({
+            data: { name: "Arduino", location: "A1", totalQuantity: 1, availableQuantity: 0 },
+        });
+        const loan = await prisma.loan.create({
+            data: {
+                clientId: client.id,
+                itemId: item.id,
+                loanDate: new Date("2020-09-01"),
+                dueDate: new Date("2020-09-20"),
+            },
+        });
+        const path = `/loan/${loan.id}`;
+        const cancel = (expectedUpdatedAt: string, userId = admin.id) =>
+            request(app).delete(path).set(authorization(userId)).query({ expectedUpdatedAt });
+        const originalVersion = loan.updatedAt.toISOString();
+        await cancel(originalVersion, operator.id).expect(403);
+        await cancel("invalid").expect(400);
+        const changed = await request(app)
+            .patch(path)
+            .set(authorization(operator.id))
+            .send({ dueDate: "2020-09-21" })
+            .expect(200);
+        const stale = await cancel(originalVersion).expect(409);
+        expect(stale.body.error.code).toBe("LOAN_CHANGED");
+        await expect(prisma.loan.findUnique({ where: { id: loan.id } })).resolves.toMatchObject({
+            cancelledAt: null,
+        });
+        await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
+            availableQuantity: 0,
+        });
+
+        await cancel(changed.body.updatedAt).expect(204);
+        const saved = await prisma.loan.findUniqueOrThrow({ where: { id: loan.id } });
+        expect(saved.cancelledAt).not.toBeNull();
+        expect(saved.cancelledById).toBe(admin.id);
+        await cancel(changed.body.updatedAt).expect(204);
+        await expect(prisma.loan.findUnique({ where: { id: loan.id } })).resolves.toEqual(saved);
+        await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
+            availableQuantity: 1,
+        });
+    });
+
     it("filters loan pages by item and status", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const client = await prisma.client.create({

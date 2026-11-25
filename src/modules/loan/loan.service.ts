@@ -14,6 +14,7 @@ import {
     LoanCreationKeyConflictError,
     LoanDateOrderError,
     LoanRenewalError,
+    LoanVersionConflictError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
 import { CreateLoanValidator } from "./input-validation/create-loan.validator.js";
@@ -31,7 +32,6 @@ function loanNotFound() {
 
 const renewalErrors = {
     returned: ["Um empréstimo devolvido não pode ser renovado.", 409, "LOAN_RETURNED"],
-    changed: ["O empréstimo mudou. Consulte o registro antes de renovar.", 409, "LOAN_CHANGED"],
     date: [
         "O novo prazo deve estar no futuro e ser posterior ao prazo atual.",
         400,
@@ -157,14 +157,22 @@ export class LoanService {
                 throw new AppError(message, status, code);
             }
 
+            if (error instanceof LoanVersionConflictError) {
+                throw new AppError(
+                    "O empréstimo mudou. Consulte o registro e tente novamente.",
+                    409,
+                    "LOAN_CHANGED",
+                );
+            }
+
             throw error;
         }
     }
 
-    async cancelById(id: number, actorId: number): Promise<void> {
-        const loan = await this.loanRepository.cancelWithStock(id, actorId);
-
-        if (!loan) throw loanNotFound();
+    async cancelById(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<void> {
+        await this.changeById(() =>
+            this.loanRepository.cancelWithStock(id, actorId, expectedUpdatedAt),
+        );
     }
 }
 

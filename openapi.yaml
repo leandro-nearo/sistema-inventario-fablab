@@ -695,11 +695,28 @@ paths:
       summary: Cancela sem apagar o histórico (ADMIN)
       security:
         - bearerAuth: []
+      parameters:
+        - name: expectedUpdatedAt
+          in: query
+          description: Valor de updatedAt obtido na consulta do empréstimo.
+          schema:
+            type: string
+            format: date-time
       responses:
         "204":
           description: Empréstimo cancelado
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: A versão do empréstimo mudou desde a consulta (LOAN_CHANGED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /loan/{id}/return:
     parameters:
       - $ref: "#/components/parameters/Id"

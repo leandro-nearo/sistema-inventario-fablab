@@ -3,7 +3,7 @@ import { loanService } from "@modules/loan/loan.service.js";
 import { MESSAGES } from "@src/constants/messages.js";
 import { DateValidator } from "@src/shared/utils/validators/date.validator.js";
 import { IdValidator } from "@src/shared/utils/validators/id.validator.js";
-import { paginationFrom } from "@src/shared/validation/fields.js";
+import { isoDateSchema, paginationFrom } from "@src/shared/validation/fields.js";
 import type { Request, Response } from "express";
 import { loanCreationKeySchema, loanListQuerySchema } from "./loan.schemas.js";
 
@@ -90,7 +90,12 @@ class LoanController {
     async deleteById(req: Request, res: Response) {
         const loanId = Number(req.params.id);
         IdValidator.validate(loanId);
-        await loanService.cancelById(loanId, Number(req.userId));
+        const expected = isoDateSchema.optional().parse(req.query.expectedUpdatedAt);
+        await loanService.cancelById(
+            loanId,
+            Number(req.userId),
+            expected === undefined ? undefined : new Date(expected),
+        );
         return res.status(204).send();
     }
 }

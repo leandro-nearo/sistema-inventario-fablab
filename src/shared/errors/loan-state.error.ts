@@ -27,8 +27,15 @@ export class LoanDateOrderError extends Error {
 }
 
 export class LoanRenewalError extends Error {
-    constructor(readonly reason: "returned" | "changed" | "date") {
+    constructor(readonly reason: "returned" | "date") {
         super("Loan renewal failed");
         this.name = "LoanRenewalError";
+    }
+}
+
+export class LoanVersionConflictError extends Error {
+    constructor() {
+        super("The loan version has changed");
+        this.name = "LoanVersionConflictError";
     }
 }

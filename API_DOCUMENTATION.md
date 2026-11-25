@@ -104,7 +104,7 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 | `POST` | `/loan/:id/return` | `ADMIN`, `OPERATOR` | — | `200 Loan` |
 | `POST` | `/loan/:id/renew` | `ADMIN`, `OPERATOR` | `expectedUpdatedAt`, `dueDate` | `200 Loan` |
 | `PATCH` | `/loan/:id` | `ADMIN`, `OPERATOR` | `loanDate?`, `dueDate?`, `returnDate?` | `200 Loan` |
-| `DELETE` | `/loan/:id` | `ADMIN` | — | `204` |
+| `DELETE` | `/loan/:id` | `ADMIN` | `expectedUpdatedAt?` | `204` |
 
 `status` aceita `all`, `active`, `returned`, `cancelled` e `overdue`. Definir `returnDate` devolve o estoque; definir `returnDate: null` reabre o empréstimo se houver estoque. `DELETE` cancela e preserva o registro.
 
@@ -121,6 +121,8 @@ Ao criar um empréstimo, envie um UUID novo em `Idempotency-Key` e mantenha a me
 `POST /loan/:id/renew` prorroga o prazo sem alterar o saldo. Envie o `updatedAt` que recebeu na consulta em `expectedUpdatedAt` e um novo prazo futuro em `dueDate`. O novo prazo deve ser posterior ao atual. Se uma versão mais recente do empréstimo ainda estiver ativa e já tiver o prazo solicitado, a API retorna esse registro. Uma versão mais recente com outro prazo retorna `409 LOAN_CHANGED`. Empréstimos devolvidos ou cancelados retornam `409 LOAN_RETURNED` ou `409 LOAN_CANCELLED`.
 
 Consultar, alterar, renovar, devolver ou cancelar um empréstimo inexistente retorna `404` com o código `LOAN_NOT_FOUND`.
+
+Ao cancelar, envie o `updatedAt` que recebeu na consulta em `expectedUpdatedAt` para exigir aquela versão. Uma versão diferente retorna `409 LOAN_CHANGED`. Repetir o cancelamento de um empréstimo já cancelado retorna `204` e preserva o registro de cancelamento.
 
 Datas aceitam `YYYY-MM-DD` ou data e hora ISO com segundos e fuso, por exemplo `2026-09-04T10:00:00-03:00`. `dueDate` e `returnDate` não podem anteceder `loanDate`.
 
