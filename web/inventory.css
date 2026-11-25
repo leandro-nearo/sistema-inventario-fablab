@@ -108,6 +108,7 @@ select {
 #item-dialog,
 #loan-dialog,
 #loan-renewal,
+#client-loan-search,
 #item-records {
     box-sizing: border-box;
     width: min(28rem, calc(100% - 2rem));
@@ -124,13 +125,15 @@ select {
     margin: 0 0 1rem;
 }
 
-#item-records h2 {
+#item-records h2,
+#client-loan-search h2 {
     margin: 0;
 }
 
 #item-dialog::backdrop,
 #loan-dialog::backdrop,
 #loan-renewal::backdrop,
+#client-loan-search::backdrop,
 #item-records::backdrop {
     background: #142c2b99;
 }
@@ -183,7 +186,8 @@ select {
     overflow-wrap: anywhere;
 }
 
-#loan-search-button {
+#loan-search-button,
+:where(#client-loan-query-form, #client-loan-selection) button {
     margin-top: 0.5rem;
 }
 
@@ -279,6 +283,7 @@ button[aria-disabled="true"] {
 #loan-status:empty,
 #renewal-status:empty,
 #loan-client-create-status:empty,
+#client-loan-search-status:empty,
 #item-form-status:empty {
     margin: 0;
 }

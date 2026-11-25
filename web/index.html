@@ -31,6 +31,7 @@
                     <h1 id="inventory-title" tabindex="-1">Estoque de itens</h1>
                     <div class="dialog-actions">
                         <button id="open-overdue-loans" class="secondary" type="button" aria-haspopup="dialog">Empréstimos atrasados</button>
+                        <button id="open-client-loans" class="secondary" type="button" aria-haspopup="dialog">Empréstimos por cliente</button>
                         <button id="create-item" type="button" aria-haspopup="dialog">Cadastrar item</button>
                     </div>
                 </div>
@@ -156,6 +157,25 @@
                             <button id="discard-loan-attempt" class="secondary" type="button" hidden>Descartar tentativa</button>
                             <button id="save-loan" type="submit">Registrar empréstimo</button>
                         </div>
+                    </form>
+                </dialog>
+                <dialog id="client-loan-search" class="panel" aria-labelledby="client-loan-search-title">
+                    <div class="inventory-heading">
+                        <h2 id="client-loan-search-title">Empréstimos por cliente</h2>
+                        <form method="dialog">
+                            <button class="secondary" type="submit">Voltar ao estoque</button>
+                        </form>
+                    </div>
+                    <form id="client-loan-query-form">
+                        <label for="client-loan-query">Nome ou e-mail do cliente</label>
+                        <input id="client-loan-query" type="search" maxlength="254" required />
+                        <button class="secondary" type="submit">Buscar cliente</button>
+                        <p id="client-loan-search-status" role="status"></p>
+                    </form>
+                    <form id="client-loan-selection" method="dialog" hidden>
+                        <label for="client-loan-client">Cliente</label>
+                        <select id="client-loan-client" required></select>
+                        <button type="submit" aria-haspopup="dialog" disabled>Consultar empréstimos</button>
                     </form>
                 </dialog>
                 <dialog id="item-records" class="panel" aria-labelledby="records-title">

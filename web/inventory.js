@@ -1,3 +1,4 @@
+import { createClientLoanSearch } from "./client-loan-search.js";
 import { createItemRecords } from "./item-records.js";
 import { createLoanRegistration } from "./loan-registration.js";
 import { createLoanRenewal } from "./loan-renewal.js";
@@ -25,6 +26,7 @@ const next = document.querySelector("#next");
 const pageLabel = document.querySelector("#page");
 const createItem = document.querySelector("#create-item");
 const openOverdueLoans = document.querySelector("#open-overdue-loans");
+const openClientLoans = document.querySelector("#open-client-loans");
 const itemDialog = document.querySelector("#item-dialog");
 const itemDialogTitle = document.querySelector("#item-dialog-title");
 const itemForm = document.querySelector("#item-form");
@@ -46,12 +48,20 @@ const openLoanRegistration = document.querySelector("#open-loan-registration");
 const loanDialog = document.querySelector("#loan-dialog");
 const renewalDialog = document.querySelector("#loan-renewal");
 const recordsDialog = document.querySelector("#item-records");
+const clientLoanSearchDialog = document.querySelector("#client-loan-search");
 const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, {
     returnLoan,
     cancelLoan,
     renewLoan: (loan, opener) => loanRenewal.open(loan, opener, tokens.userId),
     fallbackFocus: cancelItem,
 });
+const clientLoanSearch = createClientLoanSearch(
+    clientLoanSearchDialog,
+    (path, options) => requestInDialog(clientLoanSearchDialog, path, options),
+    (client, opener) => {
+        if (tokens && !pendingRequest) itemRecords.open({ client, opener });
+    },
+);
 const loanRegistration = createLoanRegistration(
     (path, options) => requestInDialog(loanDialog, path, options),
     registerLoan,
@@ -137,6 +147,7 @@ function updateControls() {
         next,
         createItem,
         openOverdueLoans,
+        openClientLoans,
         ...rows.querySelectorAll(".edit-item"),
     ]) {
         button.setAttribute("aria-disabled", String(loading || button.disabled));
@@ -189,6 +200,7 @@ function showLogin(message, preserveDraft = false) {
     loanRenewal.close(preserveDraft);
     loanRegistration.close();
     itemRecords.close();
+    clientLoanSearch.close();
     itemDialog.close();
     if (!retainedDraft) resetItemDraft();
     itemResult.textContent = "";
@@ -239,22 +251,25 @@ function clearAdminAccess(session) {
     updateControls();
 }
 
-async function fetchItemRecords(kind, id, { page, pageSize, loanStatus, signal }) {
+async function fetchItemRecords({ kind, item, client }, { page, pageSize, loanStatus, signal }) {
     const session = tokens;
     const adjustments = kind === "adjustments";
     if (!session || (adjustments && session.role !== "ADMIN")) throw new Error("Acesso negado.");
     const query = new URLSearchParams({ page, pageSize });
     if (!adjustments) {
         query.set("status", loanStatus);
-        if (id === undefined) {
+        if (item) {
+            query.set("itemId", item.id);
+            query.set("include", "client");
+        } else if (client) {
+            query.set("clientId", client.id);
+            query.set("include", "itemLocation");
+        } else {
             query.set("include", "client,itemLocation");
             query.set("order", "due");
-        } else {
-            query.set("itemId", id);
-            query.set("include", "client");
         }
     }
-    const path = adjustments ? `/item/${id}/adjustments` : "/loan";
+    const path = adjustments ? `/item/${item.id}/adjustments` : "/loan";
     try {
         return await requestWithSession(`${path}?${query}`, session, { signal });
     } catch (error) {
@@ -536,8 +551,11 @@ function selectItem(item) {
 createItem.addEventListener("click", () => selectItem(null));
 openOverdueLoans.addEventListener("click", () => {
     if (tokens && !pendingRequest && !itemDialog.open) {
-        itemRecords.open(null, "loans", openOverdueLoans);
+        itemRecords.open({ opener: openOverdueLoans });
     }
+});
+openClientLoans.addEventListener("click", () => {
+    if (tokens && !pendingRequest && !itemDialog.open) clientLoanSearch.open(openClientLoans);
 });
 
 function openLoanDialog() {
@@ -554,7 +572,7 @@ for (const [button, kind] of [
 ]) {
     button.addEventListener("click", () => {
         if (editingItem && tokens && !pendingRequest && !button.hidden) {
-            itemRecords.open(editingItem.original, kind, button);
+            itemRecords.open({ item: editingItem.original, kind, opener: button });
         }
     });
 }
@@ -574,12 +592,23 @@ itemDialog.addEventListener("close", () => {
     }
 });
 
-recordsDialog.addEventListener("close", () => {
-    if (recordsDialog.open || itemDialog.open || itemListRefreshPage === null || !tokens) return;
+function refreshStockAfterRecords() {
+    if (
+        recordsDialog.open ||
+        itemDialog.open ||
+        clientLoanSearchDialog.open ||
+        itemListRefreshPage === null ||
+        !tokens
+    ) {
+        return;
+    }
     const refreshPage = itemListRefreshPage;
     itemListRefreshPage = null;
     void loadPage(refreshPage, filters);
-});
+}
+
+recordsDialog.addEventListener("close", refreshStockAfterRecords);
+clientLoanSearchDialog.addEventListener("close", refreshStockAfterRecords);
 
 async function refreshItemQuantity(path, session) {
     itemListRefreshPage ??= page;

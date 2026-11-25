@@ -52,6 +52,8 @@ O filtro **Situação dos empréstimos** abre em **Ativos**. Use **Atrasados** p
 
 Na tela principal do estoque, **Empréstimos atrasados** reúne os empréstimos vencidos de todos os itens, do prazo mais antigo ao mais recente. Cada registro mostra a localização e o ID do item.
 
+Use **Empréstimos por cliente** para buscar pelo nome ou localizar um cadastro pelo e-mail completo. Selecione o cliente e abra os empréstimos ativos, ou mude o filtro para consultar o histórico desse cliente.
+
 Use **Prorrogar prazo** em um empréstimo ativo e informe um novo prazo no horário local. Se outra pessoa alterar o empréstimo, confira o prazo atualizado antes de enviar novamente.
 
 Use **Registrar devolução** para devolver todas as unidades de um empréstimo. Se o empréstimo mudar antes da confirmação, confira o registro atualizado antes de tentar novamente. O estoque reflete a devolução ao voltar à lista de itens.

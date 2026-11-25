@@ -13,6 +13,7 @@ describe("inventory page", () => {
             .expect(/Estoque de itens/)
             .expect(/<label for="availability">Disponibilidade<\/label>/)
             .expect(/<label for="order">Ordenação<\/label>/)
+            .expect(/<button id="open-client-loans"[^>]*aria-haspopup="dialog"/)
             .expect(/<dialog id="item-dialog"[^>]*aria-labelledby="item-dialog-title"/);
         expect(page.headers["content-security-policy"]).not.toContain("upgrade-insecure-requests");
         await request(app)
@@ -21,6 +22,10 @@ describe("inventory page", () => {
             .expect("Content-Type", /text\/css/);
         await request(app)
             .get("/inventario/inventory.js")
+            .expect(200)
+            .expect("Content-Type", /javascript/);
+        await request(app)
+            .get("/inventario/client-loan-search.js")
             .expect(200)
             .expect("Content-Type", /javascript/);
         await request(app)

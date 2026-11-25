@@ -72,7 +72,7 @@ function renderAdjustment(adjustment) {
     return entry;
 }
 
-function renderLoan(loan, confirmLoanChange, openRenewal) {
+function renderLoan(loan, confirmLoanChange, openRenewal, showClient) {
     const entry = document.createElement("li");
     const identifier = document.createElement("strong");
     const loanLabel = `Empréstimo #${loan.id}`;
@@ -89,7 +89,7 @@ function renderLoan(loan, confirmLoanChange, openRenewal) {
     const client = loan.client?.name ? `${loan.client.name} (${clientId})` : clientId;
     const closed = loan.returnDate || loan.cancelledAt;
     const quantity = `${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
-    details.textContent = `${client} · ${quantity}${closed ? "" : " · Ativo"}`;
+    details.textContent = `${showClient ? `${client} · ` : ""}${quantity}${closed ? "" : " · Ativo"}`;
     entry.append(details, renderLoanDate("Prazo de devolução ", loan.dueDate));
     if (loan.returnDate) entry.append(renderLoanDate("Devolvido em ", loan.returnDate));
     if (loan.cancelledAt) entry.append(renderLoanDate("Cancelado em ", loan.cancelledAt));
@@ -168,16 +168,16 @@ export function createItemRecords(
 
     async function loadPage(requestedPage) {
         if (!active || loading || savingLoan) return;
-        const { item, kind } = active;
+        const { item, client, kind } = active;
         const view = views[kind];
         let loanStatus = null;
-        if (kind === "loans") loanStatus = item ? loanStatusField.value : "overdue";
+        if (kind === "loans") loanStatus = item || client ? loanStatusField.value : "overdue";
         const controller = new AbortController();
         loading = controller;
         updateControls();
         status.textContent = view.loading;
         try {
-            const records = await fetchRecords(kind, item?.id, {
+            const records = await fetchRecords(active, {
                 page: requestedPage,
                 pageSize,
                 loanStatus,
@@ -193,7 +193,9 @@ export function createItemRecords(
             hasNext = records.length === pageSize;
             const focusedEntry = entries.contains(document.activeElement);
             entries.replaceChildren(
-                ...records.map((record) => view.render(record, confirmLoanChange, openRenewal)),
+                ...records.map((record) =>
+                    view.render(record, confirmLoanChange, openRenewal, !client),
+                ),
             );
             region.hidden = records.length === 0;
             region.scrollTop = 0;
@@ -206,7 +208,8 @@ export function createItemRecords(
                 : emptyMessage;
         } catch (error) {
             if (loading !== controller || !dialog.open) return;
-            clearEntries();
+            const temporaryFailure = !error.status || error.status >= 500;
+            if (requestedPage === page || !temporaryFailure) clearEntries();
             status.textContent = error.message;
         } finally {
             if (loading === controller) {
@@ -279,7 +282,7 @@ export function createItemRecords(
     previous.addEventListener("click", () => void loadPage(page - 1));
     next.addEventListener("click", () => void loadPage(page + 1));
     loanStatusField.addEventListener("change", () => {
-        if (savingLoan || active?.kind !== "loans" || !active.item || !dialog.open) return;
+        if (savingLoan || active?.kind !== "loans" || loanFilters.hidden || !dialog.open) return;
         loading?.abort();
         loading = null;
         clearEntries();
@@ -306,21 +309,30 @@ export function createItemRecords(
             cancellationAllowed = allowed;
             updateControls();
         },
-        open(item, kind, opener) {
+        open({ item, client, kind = "loans", opener }) {
             if (dialog.open) return;
             clearRecords();
-            active = { item, kind, opener };
+            active = { item, client, kind, opener };
             const view = views[kind];
-            title.textContent = item ? view.title : "Empréstimos atrasados";
-            closeButton.textContent = item ? "Voltar ao item" : "Voltar ao estoque";
-            loanFilters.hidden = kind !== "loans" || !item;
+            let heading = view.title;
+            let closeLabel = "Voltar ao item";
+            let paginationLabel = view.pagination;
+            if (client) {
+                heading = "Empréstimos do cliente";
+                closeLabel = "Voltar à busca";
+                paginationLabel = "Páginas dos empréstimos do cliente";
+            } else if (!item) {
+                heading = "Empréstimos atrasados";
+                closeLabel = "Voltar ao estoque";
+                paginationLabel = "Páginas dos empréstimos atrasados";
+            }
+            title.textContent = heading;
+            closeButton.textContent = closeLabel;
+            loanFilters.hidden = kind !== "loans" || !(item || client);
             region.setAttribute("aria-label", view.region);
-            pagination.setAttribute(
-                "aria-label",
-                item ? view.pagination : "Páginas dos empréstimos atrasados",
-            );
-            name.hidden = !item;
-            name.textContent = item?.name ?? "";
+            pagination.setAttribute("aria-label", paginationLabel);
+            name.hidden = !(item || client);
+            name.textContent = client ? `${client.name} (${client.email})` : (item?.name ?? "");
             page = 1;
             opener.focus({ preventScroll: true });
             dialog.showModal();
