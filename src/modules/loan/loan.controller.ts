@@ -20,12 +20,14 @@ class LoanController {
     async list(req: Request, res: Response) {
         const query = loanListQuerySchema.parse(req.query);
         const include = query.include?.split(",") ?? [];
+        const includeItemLocation = include.includes("itemLocation");
         const loans = await loanService.list({
             ...paginationFrom(query),
             status: query.status,
             ...(query.itemId !== undefined ? { itemId: query.itemId } : {}),
             includeClient: include.includes("client"),
-            includeItem: include.includes("item"),
+            includeItem: include.includes("item") || includeItemLocation,
+            includeItemLocation,
             order: query.order,
         });
         return res.json(loans);

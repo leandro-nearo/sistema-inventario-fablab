@@ -580,10 +580,10 @@ paths:
             maximum: 2147483647
         - name: include
           in: query
-          description: Inclui o nome do cliente, do item ou de ambos em cada empréstimo.
+          description: Inclui o nome do cliente, o nome do item ou o nome e a localização do item. Combine client com item ou itemLocation por meio de uma vírgula.
           schema:
             type: string
-            enum: [client, item, "client,item", "item,client"]
+            enum: [client, item, "client,item", "item,client", itemLocation, "client,itemLocation", "itemLocation,client"]
         - name: order
           in: query
           description: recent ordena da data de empréstimo mais nova à mais antiga. due ordena do vencimento mais antigo ao mais novo.
@@ -1241,3 +1241,6 @@ components:
               properties:
                 name:
                   type: string
+                location:
+                  type: string
+                  description: Presente quando a consulta usa itemLocation.

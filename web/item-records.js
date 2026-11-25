@@ -77,13 +77,20 @@ function renderLoan(loan, confirmLoanChange, openRenewal) {
     const identifier = document.createElement("strong");
     const loanLabel = `Empréstimo #${loan.id}`;
     identifier.textContent = loan.item ? `${loan.item.name} · ${loanLabel}` : loanLabel;
+    entry.append(identifier);
+    if (loan.item) {
+        const itemDetails = document.createElement("p");
+        const itemId = `Item #${loan.itemId}`;
+        itemDetails.textContent = loan.item.location ? `${loan.item.location} · ${itemId}` : itemId;
+        entry.append(itemDetails);
+    }
     const details = document.createElement("p");
     const clientId = `Cliente #${loan.clientId}`;
     const client = loan.client?.name ? `${loan.client.name} (${clientId})` : clientId;
     const closed = loan.returnDate || loan.cancelledAt;
     const quantity = `${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
     details.textContent = `${client} · ${quantity}${closed ? "" : " · Ativo"}`;
-    entry.append(identifier, details, renderLoanDate("Prazo de devolução ", loan.dueDate));
+    entry.append(details, renderLoanDate("Prazo de devolução ", loan.dueDate));
     if (loan.returnDate) entry.append(renderLoanDate("Devolvido em ", loan.returnDate));
     if (loan.cancelledAt) entry.append(renderLoanDate("Cancelado em ", loan.cancelledAt));
     if (closed) return entry;

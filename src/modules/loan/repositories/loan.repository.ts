@@ -125,7 +125,16 @@ export class PrismaLoanRepository implements LoanRepository {
         );
     }
 
-    list({ skip, take, status, itemId, includeClient, includeItem, order }: LoanListOptions) {
+    list({
+        skip,
+        take,
+        status,
+        itemId,
+        includeClient,
+        includeItem,
+        includeItemLocation = false,
+        order,
+    }: LoanListOptions) {
         const where: Prisma.LoanWhereInput =
             status === "active"
                 ? { returnDate: null, cancelledAt: null }
@@ -142,7 +151,9 @@ export class PrismaLoanRepository implements LoanRepository {
             where,
             include: {
                 client: includeClient ? { select: { name: true } } : false,
-                item: includeItem ? { select: { name: true } } : false,
+                item: includeItem
+                    ? { select: { name: true, location: includeItemLocation } }
+                    : false,
             },
             orderBy:
                 order === "due"

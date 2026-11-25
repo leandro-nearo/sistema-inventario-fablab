@@ -18,7 +18,7 @@ export type LoanDTO = {
 
 export type LoanListEntryDTO = LoanDTO & {
     client?: { name: string };
-    item?: { name: string };
+    item?: { name: string; location?: string };
 };
 
 export type LoanCreationResult = { loan: LoanDTO; created: boolean };
@@ -28,6 +28,7 @@ export type LoanListOptions = Pagination & {
     itemId?: number;
     includeClient?: boolean;
     includeItem?: boolean;
+    includeItemLocation?: boolean;
     order?: "recent" | "due";
 };
 

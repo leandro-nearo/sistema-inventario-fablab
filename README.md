@@ -50,7 +50,7 @@ Abra **Empréstimos do item** na edição para consultar as unidades emprestadas
 
 O filtro **Situação dos empréstimos** abre em **Ativos**. Use **Atrasados** para ver os prazos vencidos e **Devolvidos**, **Cancelados** ou **Todos** para consultar o histórico com as datas de devolução e cancelamento.
 
-Na tela principal do estoque, **Empréstimos atrasados** reúne os empréstimos vencidos de todos os itens, do prazo mais antigo ao mais recente.
+Na tela principal do estoque, **Empréstimos atrasados** reúne os empréstimos vencidos de todos os itens, do prazo mais antigo ao mais recente. Cada registro mostra a localização e o ID do item.
 
 Use **Prorrogar prazo** em um empréstimo ativo e informe um novo prazo no horário local. Se outra pessoa alterar o empréstimo, confira o prazo atualizado antes de enviar novamente.
 

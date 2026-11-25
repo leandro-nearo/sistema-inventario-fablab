@@ -247,7 +247,7 @@ async function fetchItemRecords(kind, id, { page, pageSize, loanStatus, signal }
     if (!adjustments) {
         query.set("status", loanStatus);
         if (id === undefined) {
-            query.set("include", "client,item");
+            query.set("include", "client,itemLocation");
             query.set("order", "due");
         } else {
             query.set("itemId", id);

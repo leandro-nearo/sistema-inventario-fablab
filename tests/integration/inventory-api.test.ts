@@ -1011,7 +1011,24 @@ databaseSuite("inventory API integration", () => {
         ]);
         expect(itemOnly.body[0]).not.toHaveProperty("client");
         expect(itemOnly.body[0].item).toEqual({ name: "Arduino" });
+        const withLocation = await list()
+            .query({
+                status: "overdue",
+                order: "due",
+                include: "client,itemLocation",
+                pageSize: 1,
+            })
+            .expect(200);
+        expect(withLocation.body).toEqual([
+            { ...firstPage.body[0], item: { name: "Sensor", location: "B1" } },
+        ]);
+        const locationOnly = await list()
+            .query({ include: "itemLocation", pageSize: 1 })
+            .expect(200);
+        expect(locationOnly.body[0]).not.toHaveProperty("client");
+        expect(locationOnly.body[0].item).toEqual({ name: "Arduino", location: "A1" });
         await list().query({ include: "item,item" }).expect(400);
+        await list().query({ include: "item,itemLocation" }).expect(400);
         await list().query({ order: "unknown" }).expect(400);
     });
 
