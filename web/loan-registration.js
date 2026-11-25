@@ -75,7 +75,7 @@ function clientOption({ id, name, email }) {
 
 export function createLoanRegistration(request, register) {
     let active = null;
-    let searching = false;
+    let searching = null;
     let submitting = false;
 
     function updateControls() {
@@ -86,11 +86,11 @@ export function createLoanRegistration(request, register) {
         fields.hidden = Boolean(attempt);
         fields.disabled = Boolean(attempt) || creatingClient;
         clientFields.disabled = creatingClient;
-        saveClient.disabled = searching || creatingClient;
+        saveClient.disabled = searching !== null || creatingClient;
         summary.hidden = !attempt;
         discard.hidden = !attempt || submitting;
         closeButton.setAttribute("aria-disabled", String(submitting || creatingClient));
-        searchButton.disabled = searching || creatingClient;
+        searchButton.disabled = searching !== null || creatingClient;
         searchField.disabled = creatingClient;
         save.setAttribute("aria-disabled", String(submitting));
         save.disabled = creatingClient || (!attempt && (!active?.available || !client.value));
@@ -103,6 +103,13 @@ export function createLoanRegistration(request, register) {
 
     function isOpen(context) {
         return active === context && dialog.open;
+    }
+
+    function clearClientSearch() {
+        searching?.abort();
+        searching = null;
+        clearClients();
+        searchStatus.textContent = "";
     }
 
     async function loadAvailability(context) {
@@ -128,29 +135,35 @@ export function createLoanRegistration(request, register) {
         if (isOpen(context)) updateControls();
     }
 
+    searchField.addEventListener("input", () => {
+        clearClientSearch();
+        updateControls();
+    });
     searchForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const context = active;
         if (!context || !dialog.open || searchButton.disabled || context.attempt) return;
-        searching = true;
+        const controller = new AbortController();
+        searching = controller;
         clearClients();
         updateControls();
         searchStatus.textContent = "Buscando clientes…";
         try {
             const clients = await request(clientSearchPath(searchField.value), {
-                signal: context.controller.signal,
+                signal: controller.signal,
             });
-            if (!isOpen(context)) return;
+            if (searching !== controller || !isOpen(context)) return;
             client.append(...clients.map(clientOption));
             if (clients.length === 0) searchStatus.textContent = "Nenhum cliente encontrado.";
             else if (clients.length === clientSearchPageSize)
                 searchStatus.textContent = "20 resultados exibidos. Refine a busca se necessário.";
             else searchStatus.textContent = "Selecione o cliente na lista.";
         } catch (error) {
-            if (isOpen(context)) searchStatus.textContent = error.message;
+            if (searching === controller && isOpen(context))
+                searchStatus.textContent = error.message;
         } finally {
-            if (isOpen(context)) {
-                searching = false;
+            if (searching === controller && isOpen(context)) {
+                searching = null;
                 updateControls();
             }
         }
@@ -294,10 +307,9 @@ export function createLoanRegistration(request, register) {
     function clear() {
         active?.controller.abort();
         active = null;
-        searching = false;
+        clearClientSearch();
         itemName.textContent = "";
         stock.textContent = "";
-        searchStatus.textContent = "";
         summary.textContent = "";
         status.textContent = "";
         clientStatus.textContent = "";
@@ -305,7 +317,6 @@ export function createLoanRegistration(request, register) {
         searchForm.reset();
         clientForm.reset();
         clientRegistration.open = false;
-        clearClients();
     }
 
     closeButton.addEventListener("click", () => {
