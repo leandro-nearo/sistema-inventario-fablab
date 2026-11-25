@@ -1,3 +1,5 @@
+import type { Pagination } from "@src/shared/validation/fields.js";
+
 export type LoanDTO = {
     id: number;
     clientId: number;
@@ -12,6 +14,11 @@ export type LoanDTO = {
     cancelledById: number | null;
     createdAt: Date;
     updatedAt: Date;
+};
+
+export type LoanListOptions = Pagination & {
+    status: "all" | "active" | "returned" | "cancelled" | "overdue";
+    itemId?: number;
 };
 
 export type CreateLoanDTO = {

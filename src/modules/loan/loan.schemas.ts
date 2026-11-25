@@ -30,5 +30,11 @@ export const loanListQuerySchema = z
     .object({
         ...paginationFields,
         status: z.enum(["all", "active", "returned", "cancelled", "overdue"]).default("all"),
+        itemId: z
+            .string()
+            .regex(/^[0-9]+$/, "O ID deve ser um número inteiro.")
+            .transform(Number)
+            .pipe(idSchema)
+            .optional(),
     })
     .strict();

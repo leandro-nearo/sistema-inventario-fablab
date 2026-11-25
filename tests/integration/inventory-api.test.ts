@@ -523,6 +523,54 @@ databaseSuite("inventory API integration", () => {
         expect(storedItem.availableQuantity).toBe(2);
     });
 
+    it("filters loan pages by item and status", async () => {
+        const authorization = { Authorization: `Bearer ${await accessToken()}` };
+        const client = await prisma.client.create({
+            data: { name: "Cliente", email: "client@example.com" },
+        });
+        const item = await prisma.item.create({
+            data: { name: "Arduino", location: "A1", totalQuantity: 3, availableQuantity: 1 },
+        });
+        const otherItem = await prisma.item.create({
+            data: { name: "Sensor", location: "A1", totalQuantity: 1, availableQuantity: 0 },
+        });
+        const loan = { clientId: client.id, itemId: item.id, loanQuantity: 1 };
+        const first = await prisma.loan.create({
+            data: { ...loan, loanDate: new Date("2026-09-01"), dueDate: new Date("2026-09-30") },
+        });
+        const second = await prisma.loan.create({
+            data: { ...loan, loanDate: new Date("2026-09-02"), dueDate: new Date("2026-09-30") },
+        });
+        const later = new Date("2026-09-03");
+        await prisma.loan.createMany({
+            data: [
+                { ...loan, loanDate: later, dueDate: later, returnDate: later },
+                { ...loan, loanDate: later, dueDate: later, itemId: otherItem.id },
+            ],
+        });
+
+        const getPage = (page: number) =>
+            request(app)
+                .get("/loan")
+                .set(authorization)
+                .query({ itemId: item.id, status: "active", page, pageSize: 1 })
+                .expect(200);
+        expect((await getPage(1)).body).toMatchObject([{ id: second.id }]);
+        expect((await getPage(2)).body).toMatchObject([{ id: first.id }]);
+        expect((await getPage(3)).body).toEqual([]);
+    });
+
+    it("rejects item filters outside the item ID format", async () => {
+        const authorization = { Authorization: `Bearer ${await accessToken()}` };
+        for (const query of ["itemId=0", "itemId=1e2", "itemId=2147483648", "itemId=1&itemId=2"]) {
+            const response = await request(app)
+                .get(`/loan?${query}`)
+                .set(authorization)
+                .expect(400);
+            expect(response.body.error.code).toBe("VALIDATION_ERROR");
+        }
+    });
+
     it("uses the ID to order history pages when dates are equal", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const client = await prisma.client.create({

@@ -1,4 +1,4 @@
-import type { CreateLoanDTO, LoanDTO } from "@modules/loan/loan.dtos.js";
+import type { CreateLoanDTO, LoanDTO, LoanListOptions } from "@modules/loan/loan.dtos.js";
 import { MESSAGES } from "@src/constants/messages.js";
 import { AppError } from "@src/shared/errors/app.error.js";
 import { InsufficientStockError } from "@src/shared/errors/insufficient-stock.error.js";
@@ -50,11 +50,7 @@ export class LoanService {
         }
     }
 
-    async list(options: {
-        skip: number;
-        take: number;
-        status: "all" | "active" | "returned" | "cancelled" | "overdue";
-    }): Promise<LoanDTO[]> {
+    async list(options: LoanListOptions): Promise<LoanDTO[]> {
         return this.loanRepository.list(options);
     }
 

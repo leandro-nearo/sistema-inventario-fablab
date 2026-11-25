@@ -20,6 +20,7 @@ class LoanController {
         const loans = await loanService.list({
             ...paginationFrom(query),
             status: query.status,
+            ...(query.itemId !== undefined ? { itemId: query.itemId } : {}),
         });
         return res.json(loans);
     }

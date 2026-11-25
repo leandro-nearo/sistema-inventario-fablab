@@ -6,6 +6,7 @@ import {
     LoanDateOrderError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
+import type { LoanListOptions } from "../loan.dtos.js";
 
 export type LoanCreateData = {
     clientId: number;
@@ -26,11 +27,7 @@ export type LoanUpdateData = {
 
 export interface LoanRepository {
     createWithStockReservation(data: LoanCreateData): Promise<Loan>;
-    list(options: {
-        skip: number;
-        take: number;
-        status: "all" | "active" | "returned" | "cancelled" | "overdue";
-    }): Promise<Loan[]>;
+    list(options: LoanListOptions): Promise<Loan[]>;
     findById(id: number): Promise<Loan | null>;
     updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null>;
     cancelWithStock(id: number, actorId: number): Promise<Loan | null>;
@@ -74,17 +71,8 @@ export class PrismaLoanRepository implements LoanRepository {
         });
     }
 
-    list({
-        skip,
-        take,
-        status,
-    }: {
-        skip: number;
-        take: number;
-        status: "all" | "active" | "returned" | "cancelled" | "overdue";
-    }) {
-        const now = new Date();
-        const where: Prisma.LoanWhereInput | undefined =
+    list({ skip, take, status, itemId }: LoanListOptions) {
+        const where: Prisma.LoanWhereInput =
             status === "active"
                 ? { returnDate: null, cancelledAt: null }
                 : status === "returned"
@@ -92,11 +80,12 @@ export class PrismaLoanRepository implements LoanRepository {
                   : status === "cancelled"
                     ? { cancelledAt: { not: null } }
                     : status === "overdue"
-                      ? { returnDate: null, cancelledAt: null, dueDate: { lt: now } }
-                      : undefined;
+                      ? { returnDate: null, cancelledAt: null, dueDate: { lt: new Date() } }
+                      : {};
+        if (itemId !== undefined) where.itemId = itemId;
 
         return prisma.loan.findMany({
-            ...(where ? { where } : {}),
+            where,
             orderBy: [{ loanDate: "desc" }, { id: "desc" }],
             skip,
             take,
