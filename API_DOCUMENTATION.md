@@ -122,6 +122,6 @@ type Loan = {
 ## Saúde
 
 - `GET /health/live`: processo HTTP ativo.
-- `GET /health/ready`: processo consegue consultar o PostgreSQL.
+- `GET /health/ready`: retorna `200` quando a consulta ao PostgreSQL funciona e `503` com o código `DATABASE_UNAVAILABLE` quando a consulta falha.
 
 Consulte [openapi.yaml](./openapi.yaml) para a especificação legível por ferramentas.

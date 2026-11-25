@@ -34,8 +34,12 @@ paths:
       responses:
         "200":
           description: Aplicação pronta
-        "500":
-          $ref: "#/components/responses/InternalError"
+        "503":
+          description: Banco de dados indisponível
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /auth/login:
     post:
       security: []
@@ -668,12 +672,6 @@ components:
             $ref: "#/components/schemas/Error"
     RateLimited:
       description: Limite de requisições excedido
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Error"
-    InternalError:
-      description: Erro inesperado
       content:
         application/json:
           schema:
