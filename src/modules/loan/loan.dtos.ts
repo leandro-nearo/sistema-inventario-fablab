@@ -26,6 +26,7 @@ export type LoanCreationResult = { loan: LoanDTO; created: boolean };
 export type LoanListOptions = Pagination & {
     status: "all" | "active" | "returned" | "cancelled" | "overdue";
     itemId?: number;
+    clientId?: number;
     includeClient?: boolean;
     includeItem?: boolean;
     includeItemLocation?: boolean;

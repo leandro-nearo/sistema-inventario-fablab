@@ -130,6 +130,7 @@ export class PrismaLoanRepository implements LoanRepository {
         take,
         status,
         itemId,
+        clientId,
         includeClient,
         includeItem,
         includeItemLocation = false,
@@ -146,6 +147,7 @@ export class PrismaLoanRepository implements LoanRepository {
                       ? { returnDate: null, cancelledAt: null, dueDate: { lt: new Date() } }
                       : {};
         if (itemId !== undefined) where.itemId = itemId;
+        if (clientId !== undefined) where.clientId = clientId;
 
         return prisma.loan.findMany({
             where,

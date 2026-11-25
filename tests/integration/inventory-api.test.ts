@@ -853,16 +853,19 @@ databaseSuite("inventory API integration", () => {
         });
     });
 
-    it("filters loan pages by item and status", async () => {
+    it("filters loan pages by client, item, and status", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const client = await prisma.client.create({
             data: { name: "Cliente", email: "client@example.com" },
+        });
+        const otherClient = await prisma.client.create({
+            data: { name: "Outro cliente", email: "other@example.com" },
         });
         const item = await prisma.item.create({
             data: { name: "Arduino", location: "A1", totalQuantity: 3, availableQuantity: 1 },
         });
         const otherItem = await prisma.item.create({
-            data: { name: "Sensor", location: "A1", totalQuantity: 1, availableQuantity: 0 },
+            data: { name: "Sensor", location: "A1", totalQuantity: 2, availableQuantity: 0 },
         });
         const loan = { clientId: client.id, itemId: item.id, loanQuantity: 1 };
         const first = await prisma.loan.create({
@@ -876,6 +879,13 @@ databaseSuite("inventory API integration", () => {
             data: [
                 { ...loan, loanDate: later, dueDate: later, returnDate: later },
                 { ...loan, loanDate: later, dueDate: later, itemId: otherItem.id },
+                {
+                    ...loan,
+                    clientId: otherClient.id,
+                    itemId: otherItem.id,
+                    loanDate: later,
+                    dueDate: later,
+                },
             ],
         });
 
@@ -888,16 +898,36 @@ databaseSuite("inventory API integration", () => {
         expect((await getPage(1)).body).toMatchObject([{ id: second.id }]);
         expect((await getPage(2)).body).toMatchObject([{ id: first.id }]);
         expect((await getPage(3)).body).toEqual([]);
+
+        const clientLoans = (filters: Record<string, string | number>) =>
+            request(app)
+                .get("/loan")
+                .set(authorization)
+                .query({ clientId: client.id, status: "active", ...filters })
+                .expect(200);
+        expect((await clientLoans({ pageSize: 1 })).body).toMatchObject([
+            { clientId: client.id, itemId: otherItem.id },
+        ]);
+        expect((await clientLoans({ page: 2, pageSize: 1 })).body).toMatchObject([
+            { id: second.id },
+        ]);
+        expect((await clientLoans({ itemId: item.id })).body).toMatchObject([
+            { id: second.id },
+            { id: first.id },
+        ]);
+        expect((await clientLoans({ clientId: otherClient.id, itemId: item.id })).body).toEqual([]);
     });
 
-    it("rejects item filters outside the item ID format", async () => {
+    it("rejects invalid item and client filters", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
-        for (const query of ["itemId=0", "itemId=1e2", "itemId=2147483648", "itemId=1&itemId=2"]) {
-            const response = await request(app)
-                .get(`/loan?${query}`)
-                .set(authorization)
-                .expect(400);
-            expect(response.body.error.code).toBe("VALIDATION_ERROR");
+        for (const field of ["itemId", "clientId"]) {
+            for (const value of ["0", "1e2", "2147483648", `1&${field}=2`]) {
+                const response = await request(app)
+                    .get(`/loan?${field}=${value}`)
+                    .set(authorization)
+                    .expect(400);
+                expect(response.body.error.code).toBe("VALIDATION_ERROR");
+            }
         }
     });
 

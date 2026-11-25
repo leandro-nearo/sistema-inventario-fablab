@@ -578,6 +578,13 @@ paths:
             type: integer
             minimum: 1
             maximum: 2147483647
+        - name: clientId
+          in: query
+          description: Filtra empréstimos pelo ID do cliente. Pode ser combinado com itemId e status.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2147483647
         - name: include
           in: query
           description: Inclui o nome do cliente, o nome do item ou o nome e a localização do item. Combine client com item ou itemLocation por meio de uma vírgula.

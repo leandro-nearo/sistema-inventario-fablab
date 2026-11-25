@@ -99,7 +99,7 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 | Método | Rota | Papel | Corpo/consulta | Resposta |
 |---|---|---|---|---|
 | `POST` | `/loan` | `ADMIN`, `OPERATOR` | `clientId`, `itemId`, `loanDate`, `dueDate`, `loanQuantity`, `returnDate?`; cabeçalho opcional `Idempotency-Key` | `201 Loan` na criação, `200 Loan` na repetição |
-| `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?`, `include?`, `order?` | `200 LoanListEntry[]` |
+| `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?`, `clientId?`, `include?`, `order?` | `200 LoanListEntry[]` |
 | `GET` | `/loan/:id` | Autenticado | — | `200 Loan` |
 | `POST` | `/loan/:id/return` | `ADMIN`, `OPERATOR` | `expectedUpdatedAt?` | `200 Loan` |
 | `POST` | `/loan/:id/renew` | `ADMIN`, `OPERATOR` | `expectedUpdatedAt`, `dueDate` | `200 Loan` |
@@ -108,7 +108,7 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 
 `status` aceita `all`, `active`, `returned`, `cancelled` e `overdue`. Definir `returnDate` devolve o estoque; definir `returnDate: null` reabre o empréstimo se houver estoque. `DELETE` cancela e preserva o registro.
 
-Use `GET /loan?itemId=42&status=active` para listar empréstimos ativos do item 42. A consulta retorna uma lista vazia quando nenhum empréstimo corresponde aos filtros.
+Use `GET /loan?itemId=42&status=active` para listar empréstimos ativos do item 42. Use `GET /loan?clientId=12&status=active&include=itemLocation` para listar os empréstimos ativos do cliente 12 com nome e localização dos itens. É possível combinar os filtros de cliente, item e situação. A consulta retorna uma lista vazia quando nenhum empréstimo corresponde aos filtros.
 
 Use `include=client` para acrescentar `client: { name }`, `include=item` para `item: { name }` ou `include=itemLocation` para `item: { name, location }`. Combine `client` com uma das opções de item por meio de uma vírgula. Os campos `clientId` e `itemId` identificam os registros relacionados.
 

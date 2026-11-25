@@ -25,6 +25,7 @@ class LoanController {
             ...paginationFrom(query),
             status: query.status,
             ...(query.itemId !== undefined ? { itemId: query.itemId } : {}),
+            ...(query.clientId !== undefined ? { clientId: query.clientId } : {}),
             includeClient: include.includes("client"),
             includeItem: include.includes("item") || includeItemLocation,
             includeItemLocation,
