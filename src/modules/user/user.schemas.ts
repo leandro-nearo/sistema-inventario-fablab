@@ -4,6 +4,7 @@ import {
     loginPasswordSchema,
     paginationFields,
     passwordSchema,
+    searchSchema,
     usernameSchema,
 } from "@src/shared/validation/fields.js";
 import { z } from "zod";
@@ -48,6 +49,6 @@ export const changePasswordSchema = z
 export const userListQuerySchema = z
     .object({
         ...paginationFields,
-        search: z.string().trim().max(100).optional(),
+        search: searchSchema,
     })
     .strict();

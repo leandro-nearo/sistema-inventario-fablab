@@ -2,6 +2,14 @@ import { z } from "zod";
 
 export const MAX_INT32 = 2_147_483_647;
 
+export function postgresTextSchema(error?: string) {
+    return z
+        .string(error)
+        .refine((value) => !value.includes("\0"), "O texto não pode conter caracteres nulos.");
+}
+
+export const searchSchema = postgresTextSchema().trim().max(100).optional();
+
 export const idSchema = z
     .number()
     .int("O ID deve ser um número inteiro.")

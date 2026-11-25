@@ -1,8 +1,13 @@
-import { emailSchema, paginationFields, phoneSchema } from "@src/shared/validation/fields.js";
+import {
+    emailSchema,
+    paginationFields,
+    phoneSchema,
+    postgresTextSchema,
+    searchSchema,
+} from "@src/shared/validation/fields.js";
 import { z } from "zod";
 
-const nameSchema = z
-    .string({ error: "O nome do cliente é obrigatório." })
+const nameSchema = postgresTextSchema("O nome do cliente é obrigatório.")
     .trim()
     .min(2, "O nome do cliente deve conter pelo menos 2 caracteres.")
     .max(50, "O nome do cliente deve ter no máximo 50 caracteres.");
@@ -27,6 +32,6 @@ export const updateClientSchema = z
 export const clientListQuerySchema = z
     .object({
         ...paginationFields,
-        search: z.string().trim().max(100).optional(),
+        search: searchSchema,
     })
     .strict();

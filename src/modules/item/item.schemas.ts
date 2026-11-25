@@ -1,20 +1,22 @@
-import { paginationFields, quantitySchema } from "@src/shared/validation/fields.js";
+import {
+    paginationFields,
+    postgresTextSchema,
+    quantitySchema,
+    searchSchema,
+} from "@src/shared/validation/fields.js";
 import { z } from "zod";
 
-const nameSchema = z
-    .string({ error: "O nome do item é obrigatório." })
+const nameSchema = postgresTextSchema("O nome do item é obrigatório.")
     .trim()
     .min(2, "O nome do item deve conter pelo menos 2 caracteres.")
     .max(50, "O nome do item deve ter no máximo 50 caracteres.");
 
-const categorySchema = z
-    .string()
+const categorySchema = postgresTextSchema()
     .trim()
     .max(30, "A categoria deve ter no máximo 30 caracteres.")
     .transform((category) => category || null);
 
-const locationSchema = z
-    .string({ error: "A localização é obrigatória." })
+const locationSchema = postgresTextSchema("A localização é obrigatória.")
     .trim()
     .min(1, "A localização é obrigatória.")
     .max(80, "A localização deve ter no máximo 80 caracteres.");
@@ -34,7 +36,7 @@ export const updateItemSchema = z
         category: categorySchema.nullable().optional(),
         totalQuantity: quantitySchema.optional(),
         location: locationSchema.optional(),
-        adjustmentReason: z.string().trim().min(3).max(200).optional(),
+        adjustmentReason: postgresTextSchema().trim().min(3).max(200).optional(),
     })
     .strict()
     .superRefine((data, context) => {
@@ -63,7 +65,7 @@ export const updateItemSchema = z
 export const itemListQuerySchema = z
     .object({
         ...paginationFields,
-        search: z.string().trim().max(100).optional(),
+        search: searchSchema,
         availability: z
             .enum(["available", "unavailable"], { error: "Disponibilidade inválida." })
             .optional(),
@@ -73,13 +75,13 @@ export const itemListQuerySchema = z
 export const categoryQuerySchema = z
     .object({
         ...paginationFields,
-        category: z.string().trim().min(1, "A categoria é obrigatória.").max(30),
+        category: postgresTextSchema().trim().min(1, "A categoria é obrigatória.").max(30),
     })
     .strict();
 
 export const locationQuerySchema = z
     .object({
         ...paginationFields,
-        location: z.string().trim().min(1, "A localização é obrigatória.").max(80),
+        location: postgresTextSchema().trim().min(1, "A localização é obrigatória.").max(80),
     })
     .strict();

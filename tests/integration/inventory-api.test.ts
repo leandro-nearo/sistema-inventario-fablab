@@ -206,6 +206,51 @@ databaseSuite("inventory API integration", () => {
         }
     });
 
+    it("rejects null characters in database text", async () => {
+        const authorization = { Authorization: `Bearer ${await accessToken()}` };
+        const name = "Motor\0DC";
+        const invalidText = {
+            error: {
+                code: "VALIDATION_ERROR",
+                message: "O texto não pode conter caracteres nulos.",
+            },
+        };
+
+        await request(app)
+            .post("/item")
+            .set(authorization)
+            .send({ name, location: "Estoque", totalQuantity: 2 })
+            .expect(400, invalidText);
+        await request(app)
+            .post("/client")
+            .set(authorization)
+            .send({ name, email: "client@example.com" })
+            .expect(400, invalidText);
+        await request(app)
+            .patch("/item/1")
+            .set(authorization)
+            .send({ totalQuantity: 2, adjustmentReason: name })
+            .expect(400, invalidText);
+        for (const path of ["/item", "/client", "/user"]) {
+            await request(app)
+                .get(path)
+                .set(authorization)
+                .query({ search: name })
+                .expect(400, invalidText);
+        }
+        await request(app)
+            .get("/item/by-category")
+            .set(authorization)
+            .query({ category: name })
+            .expect(400, invalidText);
+        await request(app)
+            .get("/item/by-location")
+            .set(authorization)
+            .query({ location: name })
+            .expect(400, invalidText);
+        expect(await prisma.item.count()).toBe(0);
+    });
+
     it("filters items by available quantity", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         await prisma.item.createMany({
