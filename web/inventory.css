@@ -99,7 +99,8 @@ select {
 .login input,
 #item-form input,
 #loan-fields input,
-#loan-fields select {
+#loan-fields select,
+#loan-client-create-fields input {
     margin-bottom: 1rem;
 }
 
@@ -166,7 +167,8 @@ select {
 }
 
 #item-fields,
-#loan-fields {
+#loan-fields,
+#loan-client-create-fields {
     min-width: 0;
     border: 0;
     margin: 0;
@@ -179,6 +181,21 @@ select {
 
 #loan-search-button {
     margin-top: 0.5rem;
+}
+
+#loan-client-registration {
+    border-block: 1px solid #dce5e2;
+    margin-bottom: 1rem;
+    padding-block: 0.75rem;
+}
+
+#loan-client-registration summary {
+    cursor: pointer;
+    font-weight: 650;
+}
+
+#loan-client-create-form {
+    margin-top: 0.75rem;
 }
 
 #item-registered-quantity {
@@ -256,6 +273,7 @@ button[aria-disabled="true"] {
 #records-result:empty,
 #loan-stock:empty,
 #loan-status:empty,
+#loan-client-create-status:empty,
 #item-form-status:empty {
     margin: 0;
 }

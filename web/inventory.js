@@ -45,7 +45,7 @@ const openLoanRegistration = document.querySelector("#open-loan-registration");
 const loanDialog = document.querySelector("#loan-dialog");
 const recordsDialog = document.querySelector("#item-records");
 const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, returnLoan, cancelItem);
-const loanRegistration = createLoanRegistration(readLoanRegistration, registerLoan);
+const loanRegistration = createLoanRegistration(requestLoanRegistration, registerLoan);
 
 const pageSize = 20;
 const defaultFilters = { search: "", availability: "", order: "desc" };
@@ -247,7 +247,7 @@ async function fetchItemRecords(kind, id, { page, pageSize, loanStatus, signal }
     }
 }
 
-async function readLoanRegistration(path, options) {
+async function requestLoanRegistration(path, options) {
     const session = tokens;
     if (!session) throw new Error("Sua sessão expirou.");
     try {
@@ -256,7 +256,7 @@ async function readLoanRegistration(path, options) {
         if (
             error.status === 401 &&
             session === tokens &&
-            !options.signal.aborted &&
+            !options.signal?.aborted &&
             loanDialog.open
         ) {
             showLogin("Sua sessão expirou. Entre novamente.", true);

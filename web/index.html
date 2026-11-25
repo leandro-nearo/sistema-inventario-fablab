@@ -123,6 +123,21 @@
                         <button id="loan-search-button" class="secondary" type="submit">Buscar cliente</button>
                         <p id="loan-client-results" role="status"></p>
                     </form>
+                    <details id="loan-client-registration">
+                        <summary>Cadastrar cliente</summary>
+                        <form id="loan-client-create-form" method="dialog">
+                            <fieldset id="loan-client-create-fields" aria-label="Dados do novo cliente">
+                                <label for="new-client-name">Nome do novo cliente</label>
+                                <input id="new-client-name" name="name" minlength="2" maxlength="50" required />
+                                <label for="new-client-email">E-mail do novo cliente</label>
+                                <input id="new-client-email" name="email" type="email" maxlength="254" required />
+                                <label for="new-client-phone">Telefone do novo cliente (opcional)</label>
+                                <input id="new-client-phone" name="phone" type="tel" maxlength="32" />
+                            </fieldset>
+                            <button id="save-loan-client" class="secondary" type="submit">Salvar cliente</button>
+                        </form>
+                    </details>
+                    <p id="loan-client-create-status" role="status" tabindex="-1"></p>
                     <form id="loan-form" method="dialog">
                         <fieldset id="loan-fields" aria-label="Dados do empréstimo">
                             <label for="loan-client">Cliente</label>

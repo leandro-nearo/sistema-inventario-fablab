@@ -5,6 +5,11 @@ const searchForm = document.querySelector("#loan-client-search");
 const searchField = document.querySelector("#loan-client-query");
 const searchButton = document.querySelector("#loan-search-button");
 const searchStatus = document.querySelector("#loan-client-results");
+const clientRegistration = document.querySelector("#loan-client-registration");
+const clientForm = document.querySelector("#loan-client-create-form");
+const clientFields = document.querySelector("#loan-client-create-fields");
+const clientStatus = document.querySelector("#loan-client-create-status");
+const saveClient = document.querySelector("#save-loan-client");
 const form = document.querySelector("#loan-form");
 const fields = document.querySelector("#loan-fields");
 const client = document.querySelector("#loan-client");
@@ -62,22 +67,31 @@ function clearClients() {
     client.replaceChildren(new Option("Selecione um cliente", ""));
 }
 
-export function createLoanRegistration(read, register) {
+function clientOption({ id, name, email }) {
+    return new Option(`${name} (${email})`, id);
+}
+
+export function createLoanRegistration(request, register) {
     let active = null;
     let searching = false;
     let submitting = false;
 
     function updateControls() {
         const attempt = active?.attempt;
+        const creatingClient = Boolean(active?.creatingClient);
         searchForm.hidden = Boolean(attempt);
+        clientRegistration.hidden = Boolean(attempt);
         fields.hidden = Boolean(attempt);
-        fields.disabled = Boolean(attempt);
+        fields.disabled = Boolean(attempt) || creatingClient;
+        clientFields.disabled = creatingClient;
+        saveClient.disabled = searching || creatingClient;
         summary.hidden = !attempt;
         discard.hidden = !attempt || submitting;
-        closeButton.setAttribute("aria-disabled", String(submitting));
-        searchButton.disabled = searching;
+        closeButton.setAttribute("aria-disabled", String(submitting || creatingClient));
+        searchButton.disabled = searching || creatingClient;
+        searchField.disabled = creatingClient;
         save.setAttribute("aria-disabled", String(submitting));
-        save.disabled = !attempt && (!active?.available || !client.value);
+        save.disabled = creatingClient || (!attempt && (!active?.available || !client.value));
         save.textContent = attempt && !submitting ? "Reenviar cadastro" : "Registrar empréstimo";
         if (attempt) {
             const { clientId, loanQuantity, dueDate } = attempt.data;
@@ -94,7 +108,7 @@ export function createLoanRegistration(read, register) {
         stock.textContent = "Consultando disponibilidade…";
         updateControls();
         try {
-            const { item, serverTime } = await read(`/item/${context.itemId}`, {
+            const { item, serverTime } = await request(`/item/${context.itemId}`, {
                 signal: context.controller.signal,
                 withServerTime: true,
             });
@@ -115,7 +129,7 @@ export function createLoanRegistration(read, register) {
     searchForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const context = active;
-        if (!context || !dialog.open || searching || context.attempt) return;
+        if (!context || !dialog.open || searchButton.disabled || context.attempt) return;
         const search = searchField.value.trim();
         if (!search) {
             searchStatus.textContent = "Informe o nome ou e-mail do cliente.";
@@ -127,11 +141,11 @@ export function createLoanRegistration(read, register) {
         searchStatus.textContent = "Buscando clientes…";
         try {
             const query = new URLSearchParams({ search, pageSize });
-            const clients = await read(`/client?${query}`, { signal: context.controller.signal });
+            const clients = await request(`/client?${query}`, {
+                signal: context.controller.signal,
+            });
             if (!isOpen(context)) return;
-            client.append(
-                ...clients.map(({ id, name, email }) => new Option(`${name} (${email})`, id)),
-            );
+            client.append(...clients.map(clientOption));
             if (clients.length === 0) searchStatus.textContent = "Nenhum cliente encontrado.";
             else if (clients.length === pageSize)
                 searchStatus.textContent = "20 resultados exibidos. Refine a busca se necessário.";
@@ -143,6 +157,67 @@ export function createLoanRegistration(read, register) {
                 searching = false;
                 updateControls();
             }
+        }
+    });
+
+    clientForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const context = active;
+        if (!context || !dialog.open || saveClient.disabled || context.attempt) return;
+        const values = new FormData(clientForm);
+        const name = values.get("name").trim();
+        const email = values.get("email").trim().toLowerCase();
+        const phone = values.get("phone").trim();
+        const data = { name, email, ...(phone ? { phone } : {}) };
+        context.creatingClient = true;
+        updateControls();
+        clientStatus.textContent = "Salvando cliente…";
+
+        let found;
+        let created = false;
+        let message;
+        try {
+            found = await request("/client", { data });
+            created = true;
+            message = "Cliente cadastrado e selecionado.";
+        } catch (error) {
+            const rejected = error.status >= 400 && error.status < 500;
+            message = rejected
+                ? error.message
+                : "Não foi possível confirmar o cadastro do cliente.";
+            if (isOpen(context) && (error.status === 409 || !rejected)) {
+                const query = new URLSearchParams({ email, pageSize: 1 });
+                const clients = await request(`/client?${query}`, {
+                    signal: context.controller.signal,
+                }).catch(() => []);
+                found = clients?.[0];
+                if (found) {
+                    message =
+                        error.status === 409
+                            ? "Já existe um cliente com esse e-mail. Confira e selecione o cadastro."
+                            : "Cliente localizado pelo e-mail. Confira e selecione o cadastro.";
+                }
+            }
+        }
+
+        if (!isOpen(context)) return;
+        context.creatingClient = false;
+        if (found) {
+            searchForm.reset();
+            clientForm.reset();
+            clientStatus.textContent = "";
+            clientRegistration.open = false;
+            clearClients();
+            client.append(clientOption(found));
+            if (created) client.value = found.id;
+            searchStatus.textContent = message;
+            updateControls();
+            client.focus();
+        } else {
+            clientRegistration.open = true;
+            clientStatus.textContent = message;
+            updateControls();
+            clientStatus.focus();
         }
     });
 
@@ -233,16 +308,19 @@ export function createLoanRegistration(read, register) {
         searchStatus.textContent = "";
         summary.textContent = "";
         status.textContent = "";
+        clientStatus.textContent = "";
         form.reset();
         searchForm.reset();
+        clientForm.reset();
+        clientRegistration.open = false;
         clearClients();
     }
 
     closeButton.addEventListener("click", () => {
-        if (!submitting) dialog.close();
+        if (!submitting && !active?.creatingClient) dialog.close();
     });
     dialog.addEventListener("cancel", (event) => {
-        if (submitting) event.preventDefault();
+        if (submitting || active?.creatingClient) event.preventDefault();
     });
     dialog.addEventListener("close", () => {
         if (!dialog.open) clear();

@@ -44,6 +44,8 @@ Selecione o nome de um item para editar seu nome, categoria ou localização. Pa
 
 Use **Registrar empréstimo** na edição do item. Busque o cliente pelo nome ou e-mail, selecione-o e informe a quantidade e o prazo de devolução no horário local. Se a tela perder a resposta da API, **Reenviar cadastro** usa a mesma tentativa nesta aba.
 
+Quando o cliente ainda não tiver cadastro, abra **Cadastrar cliente** no próprio empréstimo. Um e-mail já cadastrado aparece para conferência e seleção.
+
 Abra **Empréstimos ativos** na edição do item para consultar as unidades emprestadas, os nomes e IDs dos clientes e os prazos de devolução.
 
 No filtro **Situação dos empréstimos**, selecione **Atrasados** para ver apenas os empréstimos ativos cujo prazo de devolução já passou.
