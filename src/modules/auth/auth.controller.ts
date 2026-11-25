@@ -3,6 +3,13 @@ import { authService } from "@modules/auth/auth.service.js";
 import type { Request, Response } from "express";
 
 class AuthController {
+    getAccount(req: Request, res: Response) {
+        return res.set("Cache-Control", "no-store").json({
+            id: Number(req.userId),
+            role: req.userRole,
+        });
+    }
+
     async login(req: Request, res: Response) {
         const data: LoginDTO = req.body;
 

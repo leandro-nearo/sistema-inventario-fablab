@@ -107,6 +107,33 @@ databaseSuite("inventory API integration", () => {
         expect(demoted.body.role).toBe("OPERATOR");
     });
 
+    it("returns the account ID and current role for an authenticated session", async () => {
+        await request(app).get("/auth/me").expect(401);
+
+        const password = "session-test-password";
+        const user = await prisma.user.create({
+            data: {
+                username: "session",
+                email: "session@example.com",
+                passwordHash: await Bcrypt.hashPassword(password),
+                role: "OPERATOR",
+            },
+        });
+        const login = await request(app)
+            .post("/auth/login")
+            .send({ email: user.email, password })
+            .expect(200);
+        const getAccount = () =>
+            request(app).get("/auth/me").set("Authorization", `Bearer ${login.body.accessToken}`);
+
+        await getAccount().expect("Cache-Control", "no-store").expect(200, {
+            id: user.id,
+            role: "OPERATOR",
+        });
+        await prisma.user.update({ where: { id: user.id }, data: { role: "ADMIN" } });
+        await getAccount().expect(200, { id: user.id, role: "ADMIN" });
+    });
+
     it("revokes a refresh token on logout", async () => {
         const login = await request(app).post("/auth/login").send({
             email: "admin@example.com",

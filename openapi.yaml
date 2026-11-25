@@ -119,6 +119,28 @@ paths:
           description: Sessões revogadas
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Retorna a conta autenticada e seu papel atual
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Identidade da sessão
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, role]
+                properties:
+                  id:
+                    type: integer
+                  role:
+                    type: string
+                    enum: [ADMIN, OPERATOR]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /user:
     post:
       tags: [Users]

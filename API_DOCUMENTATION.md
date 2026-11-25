@@ -12,8 +12,11 @@ Envie o token de acesso como `Authorization: Bearer <accessToken>`. Tokens de re
 | `POST` | `/auth/refresh` | Público | `{ refreshToken }` | `200` com tokens rotacionados |
 | `POST` | `/auth/logout` | Público | `{ refreshToken }` | `204` |
 | `POST` | `/auth/logout-all` | Autenticado | — | `204` |
+| `GET` | `/auth/me` | Autenticado | — | `200 { id, role }` |
 
 Login e refresh possuem limite de 20 requisições por 15 minutos por endereço.
+
+`GET /auth/me` retorna o papel atual da conta (`ADMIN` ou `OPERATOR`), inclusive se ele mudar durante a sessão.
 
 ## Erros
 

@@ -7,6 +7,7 @@ import { loginSchema, refreshTokenSchema } from "./auth.schemas.js";
 
 const authRouter = Router();
 
+authRouter.get("/me", authMiddleware, authController.getAccount);
 authRouter.post("/login", authRateLimiter, validateBody(loginSchema), authController.login);
 authRouter.post(
     "/refresh",
