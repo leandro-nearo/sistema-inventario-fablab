@@ -684,8 +684,11 @@ paths:
     patch:
       tags: [Loans]
       summary: Atualiza datas, devolve ou reabre um empréstimo
+      description: Se expectedUpdatedAt for informado e o empréstimo estiver em outra versão, retorna LOAN_CHANGED.
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ExpectedLoanUpdatedAt"
       requestBody:
         required: true
         content:
@@ -699,6 +702,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Loan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -713,12 +718,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: expectedUpdatedAt
-          in: query
-          description: Valor de updatedAt obtido na consulta do empréstimo.
-          schema:
-            type: string
-            format: date-time
+        - $ref: "#/components/parameters/ExpectedLoanUpdatedAt"
       responses:
         "204":
           description: Empréstimo cancelado
@@ -747,12 +747,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: expectedUpdatedAt
-          in: query
-          description: Valor de updatedAt obtido na consulta do empréstimo.
-          schema:
-            type: string
-            format: date-time
+        - $ref: "#/components/parameters/ExpectedLoanUpdatedAt"
       responses:
         "200":
           description: Empréstimo devolvido
@@ -829,6 +824,13 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    ExpectedLoanUpdatedAt:
+      name: expectedUpdatedAt
+      in: query
+      description: Valor de updatedAt obtido na consulta do empréstimo.
+      schema:
+        type: string
+        format: date-time
     Id:
       name: id
       in: path

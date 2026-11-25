@@ -41,7 +41,12 @@ export interface LoanRepository {
     ): Promise<LoanCreationResult>;
     list(options: LoanListOptions): Promise<LoanListEntryDTO[]>;
     findById(id: number): Promise<Loan | null>;
-    updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null>;
+    updateWithStock(
+        id: number,
+        data: LoanUpdateData,
+        actorId: number,
+        expectedUpdatedAt?: Date,
+    ): Promise<Loan | null>;
     returnWithStock(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<Loan | null>;
     renewDueDate(id: number, data: LoanRenewalData): Promise<Loan | null>;
     cancelWithStock(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<Loan | null>;
@@ -177,8 +182,13 @@ export class PrismaLoanRepository implements LoanRepository {
         return prisma.loan.findUnique({ where: { id } });
     }
 
-    updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null> {
-        return this.changeWithStock(id, actorId, data);
+    updateWithStock(
+        id: number,
+        data: LoanUpdateData,
+        actorId: number,
+        expectedUpdatedAt?: Date,
+    ): Promise<Loan | null> {
+        return this.changeWithStock(id, actorId, data, expectedUpdatedAt);
     }
 
     returnWithStock(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<Loan | null> {

@@ -478,11 +478,20 @@ databaseSuite("inventory API integration", () => {
         });
 
         const { accessToken } = TokenService.generate({ userId: String(admin.id) });
-        const reopened = await request(app)
-            .patch(`/loan/${loan.id}`)
-            .set("Authorization", `Bearer ${accessToken}`)
-            .send({ returnDate: null })
-            .expect(200);
+        const reopen = (expectedUpdatedAt: string) =>
+            request(app)
+                .patch(`/loan/${loan.id}`)
+                .set("Authorization", `Bearer ${accessToken}`)
+                .query({ expectedUpdatedAt })
+                .send({ returnDate: null });
+        const staleReopen = await reopen(loan.updatedAt.toISOString()).expect(409);
+        expect(staleReopen.body.error.code).toBe("LOAN_CHANGED");
+        await reopen("invalid").expect(400);
+        await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
+            availableQuantity: 3,
+        });
+        const reopened = await reopen(first.body.updatedAt).expect(200);
+        await reopen(first.body.updatedAt).expect(409);
         const stale = await returnLoan(operator.id).expect(409);
         expect(stale.body.error.code).toBe("LOAN_CHANGED");
         await returnLoan(operator.id, "invalid").expect(400);

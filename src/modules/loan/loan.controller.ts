@@ -65,6 +65,7 @@ class LoanController {
     async updateById(req: Request, res: Response) {
         const loanId = Number(req.params.id);
         IdValidator.validate(loanId);
+        const expectedUpdatedAt = expectedLoanVersion.parse(req.query.expectedUpdatedAt);
         const data: UpdateLoanDTO = req.body;
 
         const updateData: {
@@ -90,7 +91,12 @@ class LoanController {
             updateData.returnDate = data.returnDate === null ? null : new Date(data.returnDate);
         }
 
-        const loan = await loanService.updateById(loanId, updateData, Number(req.userId));
+        const loan = await loanService.updateById(
+            loanId,
+            updateData,
+            Number(req.userId),
+            expectedUpdatedAt,
+        );
 
         return res.json(loan);
     }
