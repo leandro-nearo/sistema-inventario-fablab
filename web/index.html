@@ -27,7 +27,11 @@
                 <p id="login-status" role="status"></p>
             </section>
             <section id="inventory" aria-labelledby="inventory-title" hidden>
-                <h1 id="inventory-title" tabindex="-1">Estoque de itens</h1>
+                <div class="inventory-heading">
+                    <h1 id="inventory-title" tabindex="-1">Estoque de itens</h1>
+                    <button id="create-item" type="button" aria-haspopup="dialog">Cadastrar item</button>
+                </div>
+                <p id="item-result" role="status"></p>
                 <div class="panel">
                     <search>
                         <form id="search-form">
@@ -71,6 +75,26 @@
                         <button id="next" class="secondary" type="button" disabled>Próxima</button>
                     </nav>
                 </div>
+                <dialog id="item-dialog" class="panel" aria-labelledby="item-dialog-title">
+                    <h2 id="item-dialog-title">Cadastrar item</h2>
+                    <form id="item-form" method="dialog">
+                        <fieldset id="item-fields" aria-label="Dados do item">
+                            <label for="item-name">Nome do item</label>
+                            <input id="item-name" name="name" minlength="2" maxlength="50" required />
+                            <label for="item-location">Localização</label>
+                            <input id="item-location" name="location" maxlength="80" required />
+                            <label for="item-category">Categoria (opcional)</label>
+                            <input id="item-category" name="category" maxlength="30" />
+                            <label for="item-quantity">Quantidade total</label>
+                            <input id="item-quantity" name="totalQuantity" type="number" min="0" max="2147483647" step="1" required />
+                        </fieldset>
+                        <p id="item-form-status" role="status"></p>
+                        <div class="dialog-actions">
+                            <button id="cancel-item" class="secondary" type="button">Voltar ao estoque</button>
+                            <button id="save-item" type="submit">Salvar item</button>
+                        </div>
+                    </form>
+                </dialog>
             </section>
         </main>
         <noscript><p>Ative o JavaScript para consultar o estoque.</p></noscript>
