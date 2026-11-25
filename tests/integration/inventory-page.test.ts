@@ -14,6 +14,8 @@ describe("inventory page", () => {
             .expect(/<label for="availability">Disponibilidade<\/label>/)
             .expect(/<label for="order">Ordenação<\/label>/)
             .expect(/<button id="open-client-loans"[^>]*aria-haspopup="dialog"/)
+            .expect(/<button id="open-loan-deadlines"[^>]*aria-haspopup="dialog"/)
+            .expect(/<option value="upcoming">Próximos 7 dias<\/option>/)
             .expect(/<dialog id="item-dialog"[^>]*aria-labelledby="item-dialog-title"/);
         expect(page.headers["content-security-policy"]).not.toContain("upgrade-insecure-requests");
         await request(app)

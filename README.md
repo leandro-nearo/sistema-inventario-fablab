@@ -52,7 +52,7 @@ Abra **Empréstimos do item** na edição para consultar as unidades emprestadas
 
 O filtro **Situação dos empréstimos** abre em **Ativos**. Use **Atrasados** para ver os prazos vencidos e **Devolvidos**, **Cancelados** ou **Todos** para consultar o histórico com as datas de devolução e cancelamento.
 
-Na tela principal do estoque, **Empréstimos atrasados** reúne os empréstimos vencidos de todos os itens, do prazo mais antigo ao mais recente. Cada registro mostra a localização e o ID do item.
+Na tela principal do estoque, **Prazos de empréstimos** abre em **Atrasados**. Selecione **Próximos 7 dias** para ver os empréstimos que vencem nas próximas 168 horas. As duas listas ordenam os registros por prazo e mostram a localização e o ID de cada item. O filtro **Próximos 7 dias** também está disponível nas listas por item e por cliente.
 
 Use **Empréstimos por cliente** para buscar pelo nome ou localizar um cadastro pelo e-mail completo. Selecione o cliente e abra os empréstimos ativos, ou mude o filtro para consultar o histórico desse cliente.
 
@@ -60,7 +60,7 @@ Use **Prorrogar prazo** em um empréstimo ativo e informe um novo prazo no horá
 
 Use **Registrar devolução** para devolver todas as unidades de um empréstimo. Se o empréstimo mudar antes da confirmação, confira o registro atualizado antes de tentar novamente. O estoque reflete a devolução ao voltar à lista de itens.
 
-Administradores podem usar **Cancelar empréstimo** na lista do item ou de atrasados. O cancelamento repõe todas as unidades no estoque e fica registrado no histórico.
+Administradores podem usar **Cancelar empréstimo** em empréstimos ativos. O cancelamento repõe todas as unidades no estoque e fica registrado no histórico.
 
 Administradores podem abrir **Histórico de ajustes** na edição do item para consultar quantidades, motivos, datas e contas responsáveis.
 

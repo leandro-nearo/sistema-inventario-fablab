@@ -25,7 +25,7 @@ const previous = document.querySelector("#previous");
 const next = document.querySelector("#next");
 const pageLabel = document.querySelector("#page");
 const createItem = document.querySelector("#create-item");
-const openOverdueLoans = document.querySelector("#open-overdue-loans");
+const openLoanDeadlines = document.querySelector("#open-loan-deadlines");
 const openClientLoans = document.querySelector("#open-client-loans");
 const itemDialog = document.querySelector("#item-dialog");
 const itemDialogTitle = document.querySelector("#item-dialog-title");
@@ -148,7 +148,7 @@ function updateControls() {
         previous,
         next,
         createItem,
-        openOverdueLoans,
+        openLoanDeadlines,
         openClientLoans,
         ...rows.querySelectorAll(".edit-item"),
     ]) {
@@ -263,6 +263,7 @@ async function fetchItemRecords({ kind, item, client }, { page, pageSize, loanSt
     const query = new URLSearchParams({ page, pageSize });
     if (!adjustments) {
         query.set("status", loanStatus);
+        if (loanStatus === "upcoming" || (!item && !client)) query.set("order", "due");
         if (item) {
             query.set("itemId", item.id);
             query.set("include", "client");
@@ -271,7 +272,6 @@ async function fetchItemRecords({ kind, item, client }, { page, pageSize, loanSt
             query.set("include", "itemLocation");
         } else {
             query.set("include", "client,itemLocation");
-            query.set("order", "due");
         }
     }
     const path = adjustments ? `/item/${item.id}/adjustments` : "/loan";
@@ -558,9 +558,9 @@ function selectItem(item) {
 }
 
 createItem.addEventListener("click", () => selectItem(null));
-openOverdueLoans.addEventListener("click", () => {
+openLoanDeadlines.addEventListener("click", () => {
     if (tokens && !pendingRequest && !itemDialog.open) {
-        itemRecords.open({ opener: openOverdueLoans });
+        itemRecords.open({ opener: openLoanDeadlines });
     }
 });
 openClientLoans.addEventListener("click", () => {

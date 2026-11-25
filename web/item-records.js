@@ -3,6 +3,10 @@ const title = document.querySelector("#records-title");
 const name = document.querySelector("#records-item");
 const loanFilters = document.querySelector("#loan-records-filters");
 const loanStatusField = document.querySelector("#loan-records-status");
+const loanStatusOptions = Array.from(loanStatusField.options);
+const deadlineOptions = loanStatusOptions.filter(({ value }) =>
+    ["overdue", "upcoming"].includes(value),
+);
 const result = document.querySelector("#records-result");
 const status = document.querySelector("#records-status");
 const region = document.querySelector("#records-region");
@@ -18,6 +22,7 @@ const emptyLoanMessages = {
     all: "Nenhum empréstimo registrado.",
     active: "Nenhum empréstimo ativo.",
     overdue: "Nenhum empréstimo atrasado.",
+    upcoming: "Nenhum empréstimo com prazo nos próximos 7 dias.",
     returned: "Nenhum empréstimo devolvido.",
     cancelled: "Nenhum empréstimo cancelado.",
 };
@@ -168,10 +173,9 @@ export function createItemRecords(
 
     async function loadPage(requestedPage) {
         if (!active || loading || savingLoan) return;
-        const { item, client, kind } = active;
+        const { client, kind } = active;
         const view = views[kind];
-        let loanStatus = null;
-        if (kind === "loans") loanStatus = item || client ? loanStatusField.value : "overdue";
+        const loanStatus = kind === "loans" ? loanStatusField.value : null;
         const controller = new AbortController();
         loading = controller;
         updateControls();
@@ -272,7 +276,6 @@ export function createItemRecords(
         loading?.abort();
         loading = null;
         active = null;
-        loanStatusField.value = "active";
         name.textContent = "";
         result.textContent = "";
         status.textContent = "";
@@ -317,18 +320,21 @@ export function createItemRecords(
             let heading = view.title;
             let closeLabel = "Voltar ao item";
             let paginationLabel = view.pagination;
+            const deadlines = !item && !client;
             if (client) {
                 heading = "Empréstimos do cliente";
                 closeLabel = "Voltar à busca";
                 paginationLabel = "Páginas dos empréstimos do cliente";
-            } else if (!item) {
-                heading = "Empréstimos atrasados";
+            } else if (deadlines) {
+                heading = "Prazos de empréstimos";
                 closeLabel = "Voltar ao estoque";
-                paginationLabel = "Páginas dos empréstimos atrasados";
+                paginationLabel = "Páginas dos prazos de empréstimos";
             }
             title.textContent = heading;
             closeButton.textContent = closeLabel;
-            loanFilters.hidden = kind !== "loans" || !(item || client);
+            loanFilters.hidden = kind !== "loans";
+            loanStatusField.replaceChildren(...(deadlines ? deadlineOptions : loanStatusOptions));
+            loanStatusField.value = deadlines ? "overdue" : "active";
             region.setAttribute("aria-label", view.region);
             pagination.setAttribute("aria-label", paginationLabel);
             name.hidden = !(item || client);
