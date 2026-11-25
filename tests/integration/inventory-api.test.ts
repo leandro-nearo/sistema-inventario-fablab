@@ -312,19 +312,26 @@ databaseSuite("inventory API integration", () => {
         });
 
         const cases = [
-            [{ availability: "available", search: "cabo" }, ["Cabo USB"]],
-            [{ availability: "unavailable" }, ["Cabo HDMI", "Adaptador"]],
-            [{ availability: "unavailable", page: 2, pageSize: 1 }, ["Adaptador"]],
-            [{}, ["Cabo USB", "Cabo HDMI", "Alicate", "Adaptador"]],
-            [{ order: "desc" }, ["Adaptador", "Alicate", "Cabo HDMI", "Cabo USB"]],
-            [{ order: "desc", availability: "unavailable", page: 2, pageSize: 1 }, ["Cabo HDMI"]],
+            [{ availability: "available", search: "cabo" }, ["Cabo USB"], false],
+            [{ availability: "unavailable" }, ["Cabo HDMI", "Adaptador"], false],
+            [{ availability: "unavailable", pageSize: 1 }, ["Cabo HDMI"], true],
+            [{ availability: "unavailable", page: 2, pageSize: 1 }, ["Adaptador"], false],
+            [{ availability: "unavailable", page: 3, pageSize: 1 }, [], false],
+            [{}, ["Cabo USB", "Cabo HDMI", "Alicate", "Adaptador"], false],
+            [{ order: "desc" }, ["Adaptador", "Alicate", "Cabo HDMI", "Cabo USB"], false],
+            [
+                { order: "desc", availability: "unavailable", page: 2, pageSize: 1 },
+                ["Cabo HDMI"],
+                false,
+            ],
         ] as const;
-        for (const [query, names] of cases) {
+        for (const [query, names, hasNext] of cases) {
             const { body } = await request(app)
                 .get("/item")
                 .set(authorization)
                 .query(query)
-                .expect(200);
+                .expect(200)
+                .expect("X-Has-Next-Page", String(hasNext));
             expect(body).toMatchObject(names.map((name) => ({ name })));
         }
 
@@ -1197,7 +1204,10 @@ databaseSuite("inventory API integration", () => {
                 request(app).get(path).set(authorization).query({ page, pageSize: 1 }).expect(200);
             const list = await getPage("/loan");
             const history = await getPage(`/client/${client.id}/loans`);
-            const audit = await getPage(`/item/${item.id}/adjustments`);
+            const audit = await getPage(`/item/${item.id}/adjustments`).expect(
+                "X-Has-Next-Page",
+                String(page === 1),
+            );
             expect(list.body).toMatchObject([{ id: loanIds[page - 1] }]);
             expect(history.body.loans).toMatchObject([{ id: loanIds[page - 1] }]);
             expect(audit.body).toMatchObject([{ id: adjustmentIds[page - 1] }]);

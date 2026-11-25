@@ -1,9 +1,10 @@
 import type { CreateLoanDTO, RenewLoanDTO, UpdateLoanDTO } from "@modules/loan/loan.dtos.js";
 import { loanService } from "@modules/loan/loan.service.js";
 import { MESSAGES } from "@src/constants/messages.js";
+import { sendPage } from "@src/shared/pagination.js";
 import { DateValidator } from "@src/shared/utils/validators/date.validator.js";
 import { IdValidator } from "@src/shared/utils/validators/id.validator.js";
-import { isoDateSchema, paginationFrom } from "@src/shared/validation/fields.js";
+import { isoDateSchema } from "@src/shared/validation/fields.js";
 import type { Request, Response } from "express";
 import { loanCreationKeySchema, loanListQuerySchema } from "./loan.schemas.js";
 
@@ -21,20 +22,18 @@ class LoanController {
         const query = loanListQuerySchema.parse(req.query);
         const include = query.include?.split(",") ?? [];
         const includeItemLocation = include.includes("itemLocation");
-        const loans = await loanService.list({
-            ...paginationFrom(query),
-            take: query.pageSize + 1,
-            status: query.status,
-            ...(query.itemId !== undefined ? { itemId: query.itemId } : {}),
-            ...(query.clientId !== undefined ? { clientId: query.clientId } : {}),
-            includeClient: include.includes("client"),
-            includeItem: include.includes("item") || includeItemLocation,
-            includeItemLocation,
-            order: query.order,
-        });
-        return res
-            .set("X-Has-Next-Page", String(loans.length > query.pageSize))
-            .json(loans.slice(0, query.pageSize));
+        return sendPage(res, query, (pagination) =>
+            loanService.list({
+                ...pagination,
+                status: query.status,
+                ...(query.itemId !== undefined ? { itemId: query.itemId } : {}),
+                ...(query.clientId !== undefined ? { clientId: query.clientId } : {}),
+                includeClient: include.includes("client"),
+                includeItem: include.includes("item") || includeItemLocation,
+                includeItemLocation,
+                order: query.order,
+            }),
+        );
     }
 
     async getById(req: Request, res: Response) {

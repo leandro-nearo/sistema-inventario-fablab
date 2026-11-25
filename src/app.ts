@@ -10,6 +10,7 @@ import { env } from "@src/config/env.js";
 import { apiRateLimiter } from "@src/middlewares/rateLimitMiddleware.js";
 import { AppError } from "@src/shared/errors/app.error.js";
 import { logger } from "@src/shared/logger.js";
+import { nextPageHeader } from "@src/shared/pagination.js";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -20,7 +21,7 @@ const app = express();
 app.disable("x-powered-by");
 app.use(pinoHttp({ logger }));
 app.use(helmet());
-app.use(cors({ origin: env.corsOrigins, exposedHeaders: ["X-Has-Next-Page"] }));
+app.use(cors({ origin: env.corsOrigins, exposedHeaders: [nextPageHeader] }));
 app.use(express.json({ limit: env.jsonBodyLimit }));
 app.use("/health", healthRouter);
 app.use(

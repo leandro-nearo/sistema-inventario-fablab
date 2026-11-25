@@ -41,6 +41,8 @@ Campos de texto enviados ao banco e termos de busca com o caractere nulo `U+0000
 
 Endpoints de lista aceitam `page` (padrão 1) e `pageSize` (padrão 50, máximo 100). A resposta continua sendo um array para manter compatibilidade.
 
+`GET /item`, `GET /item/:id/adjustments` e `GET /loan` retornam o cabeçalho `X-Has-Next-Page`. O valor é `true` quando há mais registros para os filtros aplicados e `false` na última página ou em uma página vazia.
+
 Quando disponível, `search` busca um trecho literal sem distinguir maiúsculas de minúsculas. Os filtros de categoria e localização comparam o valor completo da mesma forma.
 
 A lista de empréstimos e o histórico do cliente usam, por padrão, a data do empréstimo em ordem decrescente. O histórico de ajustes usa a data de criação em ordem decrescente. Em caso de empate nessas ordenações, o maior ID vem primeiro.
@@ -115,8 +117,6 @@ Definir `returnDate` devolve o estoque; definir `returnDate: null` reabre o empr
 Use `GET /loan?itemId=42&status=active` para listar empréstimos ativos do item 42. Use `GET /loan?clientId=12&status=active&include=itemLocation` para listar os empréstimos ativos do cliente 12 com nome e localização dos itens. É possível combinar os filtros de cliente, item e situação. A consulta retorna uma lista vazia quando nenhum empréstimo corresponde aos filtros.
 
 Use `include=client` para acrescentar `client: { name }`, `include=item` para `item: { name }` ou `include=itemLocation` para `item: { name, location }`. Combine `client` com uma das opções de item por meio de uma vírgula. Os campos `clientId` e `itemId` identificam os registros relacionados.
-
-O cabeçalho `X-Has-Next-Page` de `GET /loan` vale `true` quando há mais registros para os filtros aplicados e `false` na última página ou em uma página vazia. O corpo da resposta é um array com até `pageSize` registros.
 
 `order=recent` é o padrão e ordena pela data do empréstimo, da mais nova à mais antiga, com maior ID primeiro em caso de empate. `order=due` mostra os vencimentos mais antigos primeiro. Em caso de empate no vencimento, o menor ID vem primeiro. Para consultar os atrasos de todo o estoque, use `GET /loan?status=overdue&include=client,itemLocation&order=due`.
 

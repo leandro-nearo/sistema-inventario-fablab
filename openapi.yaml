@@ -415,6 +415,9 @@ paths:
       responses:
         "200":
           description: Itens
+          headers:
+            X-Has-Next-Page:
+              $ref: "#/components/headers/HasNextPage"
           content:
             application/json:
               schema:
@@ -548,6 +551,9 @@ paths:
       responses:
         "200":
           description: Ajustes de inventário
+          headers:
+            X-Has-Next-Page:
+              $ref: "#/components/headers/HasNextPage"
           content:
             application/json:
               schema:
@@ -604,9 +610,7 @@ paths:
           description: Empréstimos
           headers:
             X-Has-Next-Page:
-              description: Indica se há outra página de empréstimos para os filtros aplicados.
-              schema:
-                type: boolean
+              $ref: "#/components/headers/HasNextPage"
           content:
             application/json:
               schema:
@@ -814,6 +818,11 @@ paths:
         "415":
           $ref: "#/components/responses/UnsupportedMediaType"
 components:
+  headers:
+    HasNextPage:
+      description: Indica se há outra página de registros para os filtros aplicados.
+      schema:
+        type: boolean
   securitySchemes:
     bearerAuth:
       type: http
