@@ -40,7 +40,7 @@ npm run dev
 
 A API usa `http://localhost:3000` por padrão. Abra [o estoque](http://localhost:3000/inventario/) e entre com uma conta do FabLab para pesquisar, filtrar por disponibilidade e cadastrar itens. Ao recarregar a página, entre novamente.
 
-Selecione o nome de um item para editar seu nome, categoria ou localização.
+Selecione o nome de um item para editar seu nome, categoria ou localização. Para alterar a quantidade total, informe o motivo do ajuste.
 
 Para verificar o servidor:
 

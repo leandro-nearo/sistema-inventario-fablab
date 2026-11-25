@@ -92,9 +92,12 @@
                             <input id="item-location" name="location" maxlength="80" required />
                             <label for="item-category">Categoria (opcional)</label>
                             <input id="item-category" name="category" maxlength="30" />
-                            <div id="item-quantity-field">
-                                <label for="item-quantity">Quantidade total</label>
-                                <input id="item-quantity" name="totalQuantity" type="number" min="0" max="2147483647" step="1" required />
+                            <p id="item-registered-quantity" hidden></p>
+                            <label for="item-quantity">Quantidade total</label>
+                            <input id="item-quantity" name="totalQuantity" type="number" min="0" max="2147483647" step="1" aria-describedby="item-registered-quantity" required />
+                            <div id="item-adjustment" hidden>
+                                <label for="item-adjustment-reason">Motivo do ajuste</label>
+                                <input id="item-adjustment-reason" name="adjustmentReason" minlength="3" maxlength="200" disabled />
                             </div>
                         </fieldset>
                         <p id="item-form-status" role="status"></p>

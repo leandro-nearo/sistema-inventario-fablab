@@ -122,6 +122,11 @@ select {
     padding: 0;
 }
 
+#item-registered-quantity {
+    margin: 0 0 0.375rem;
+    color: #425b56;
+}
+
 .dialog-actions {
     display: flex;
     justify-content: flex-end;

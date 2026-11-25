@@ -29,7 +29,9 @@ const itemName = document.querySelector("#item-name");
 const itemLocation = document.querySelector("#item-location");
 const itemCategory = document.querySelector("#item-category");
 const itemQuantity = document.querySelector("#item-quantity");
-const itemQuantityField = document.querySelector("#item-quantity-field");
+const registeredQuantity = document.querySelector("#item-registered-quantity");
+const itemAdjustment = document.querySelector("#item-adjustment");
+const adjustmentReason = document.querySelector("#item-adjustment-reason");
 const saveItem = document.querySelector("#save-item");
 const cancelItem = document.querySelector("#cancel-item");
 const itemResult = document.querySelector("#item-result");
@@ -43,6 +45,7 @@ let hasNext = false;
 let pendingRequest = null;
 let retainedDraft = null;
 let itemNeedsReview = false;
+let itemListNeedsRefresh = false;
 let editingItem = null;
 let uncertainEditFields = [];
 
@@ -68,6 +71,7 @@ async function request(path, { data, method = data ? "POST" : "GET", accessToken
     if (response.ok && body !== null) return body;
     throw Object.assign(new Error(body?.error?.message || "Falha na consulta. Tente novamente."), {
         status: response.status,
+        code: body?.error?.code,
     });
 }
 
@@ -96,8 +100,15 @@ function updateControls() {
     }
     const saving = loading && itemDialog.open;
     itemFields.disabled = saving;
+    updateAdjustmentControls();
     saveItem.setAttribute("aria-disabled", String(saving));
-    saveItem.textContent = itemNeedsReview ? "Reenviar item" : "Salvar item";
+    const refreshTotal = Boolean(editingItem?.totalNeedsRefresh);
+    saveItem.formNoValidate = refreshTotal;
+    saveItem.textContent = refreshTotal
+        ? "Consultar total atual"
+        : itemNeedsReview
+          ? "Reenviar item"
+          : "Salvar item";
     cancelItem.setAttribute("aria-disabled", String(saving));
     tableRegion.setAttribute("aria-busy", String(loading));
     pageLabel.textContent = `Página ${page}`;
@@ -110,6 +121,7 @@ function resetItemDraft() {
     itemForm.reset();
     itemFormStatus.textContent = "";
     itemNeedsReview = false;
+    itemListNeedsRefresh = false;
     editingItem = null;
     uncertainEditFields = [];
 }
@@ -272,13 +284,34 @@ next.addEventListener("click", () => void loadPage(page + 1, filters));
 function openItemDialog() {
     if (!tokens || pendingRequest) return;
     itemDialogTitle.textContent = editingItem ? "Editar item" : "Cadastrar item";
-    itemQuantityField.hidden = Boolean(editingItem);
-    itemQuantity.disabled = Boolean(editingItem);
     if (!itemNeedsReview) itemFormStatus.textContent = "";
     itemResult.textContent = "";
     itemDialog.showModal();
     updateControls();
 }
+
+function quantityChanged() {
+    return (
+        editingItem !== null &&
+        (itemQuantity.valueAsNumber !== editingItem.totalQuantity ||
+            uncertainEditFields.includes("totalQuantity"))
+    );
+}
+
+function updateAdjustmentControls() {
+    const adjusting = quantityChanged();
+    registeredQuantity.hidden = !editingItem;
+    registeredQuantity.textContent = editingItem?.totalNeedsRefresh
+        ? "Total registrado indisponível."
+        : editingItem
+          ? `Total registrado ${editingItem.totalQuantity}`
+          : "";
+    itemAdjustment.hidden = !adjusting;
+    adjustmentReason.disabled = !adjusting;
+    adjustmentReason.required = adjusting;
+}
+
+itemQuantity.addEventListener("input", updateAdjustmentControls);
 
 function readItemFields() {
     return {
@@ -307,7 +340,7 @@ function selectItem(item) {
     const hasDraft =
         itemNeedsReview ||
         (editingItem
-            ? Object.keys(fields).length > 0
+            ? Object.keys(fields).length > 0 || quantityChanged()
             : Boolean(fields.name || fields.location || fields.category || itemQuantity.value));
     if (switching && hasDraft && !window.confirm("Descartar o rascunho atual?")) return;
     if (switching || !hasDraft) {
@@ -315,7 +348,15 @@ function selectItem(item) {
         itemName.value = item?.name ?? "";
         itemLocation.value = item?.location ?? "";
         itemCategory.value = item?.category ?? "";
-        editingItem = item ? { id: item.id, original: item, baseline: readItemFields() } : null;
+        itemQuantity.value = item ? String(item.totalQuantity) : "";
+        editingItem = item
+            ? {
+                  id: item.id,
+                  original: item,
+                  baseline: readItemFields(),
+                  totalQuantity: item.totalQuantity,
+              }
+            : null;
     }
     openItemDialog();
 }
@@ -329,16 +370,59 @@ itemDialog.addEventListener("cancel", (event) => {
     if (pendingRequest) event.preventDefault();
 });
 itemDialog.addEventListener("close", () => {
-    if (itemNeedsReview)
+    if (itemNeedsReview || itemListNeedsRefresh) {
+        itemListNeedsRefresh = false;
         void loadPage(!editingItem && filters.order === "desc" ? 1 : page, filters);
+    }
 });
+
+async function refreshItemQuantity(path, session) {
+    itemListNeedsRefresh = true;
+    editingItem.totalNeedsRefresh = true;
+    try {
+        pendingRequest = requestWithSession(path, session);
+        updateControls();
+        itemFormStatus.textContent = "Consultando o total registrado…";
+        const item = await pendingRequest;
+        if (session !== tokens) return;
+        editingItem.totalQuantity = item.totalQuantity;
+        editingItem.totalNeedsRefresh = false;
+        uncertainEditFields = uncertainEditFields.filter((field) => field !== "totalQuantity");
+        itemNeedsReview = uncertainEditFields.length > 0;
+        itemFormStatus.textContent = quantityChanged()
+            ? `O total registrado mudou para ${item.totalQuantity}. Revise o ajuste antes de salvar.`
+            : "O total registrado já corresponde ao valor informado.";
+    } catch (error) {
+        if (session !== tokens) return;
+        if (error.status === 401) {
+            showLogin("Sua sessão expirou. Entre novamente.", true);
+            return;
+        }
+        itemFormStatus.textContent = error.message;
+    }
+}
 
 itemForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const session = tokens;
     if (pendingRequest || !session || !itemDialog.open) return;
     const editingId = editingItem?.id;
+    const path = editingId ? `/item/${editingId}` : "/item";
+    if (editingItem?.totalNeedsRefresh) {
+        try {
+            await refreshItemQuantity(path, session);
+        } finally {
+            pendingRequest = null;
+            updateControls();
+        }
+        return;
+    }
     const fields = itemChanges();
+    if (quantityChanged()) {
+        fields.totalQuantity = itemQuantity.valueAsNumber;
+        fields.expectedTotalQuantity = editingItem.totalQuantity;
+        fields.adjustmentReason = adjustmentReason.value.trim();
+    }
     if (editingId && Object.keys(fields).length === 0) {
         itemFormStatus.textContent = "Altere algum dado para salvar.";
         return;
@@ -351,12 +435,11 @@ itemForm.addEventListener("submit", async (event) => {
     ) {
         return;
     }
-    itemNeedsReview = false;
     const data = editingId
         ? fields
         : { ...fields, category: fields.category ?? "", totalQuantity: itemQuantity.valueAsNumber };
     saveItem.focus();
-    pendingRequest = requestWithSession(editingId ? `/item/${editingId}` : "/item", session, {
+    pendingRequest = requestWithSession(path, session, {
         method: editingId ? "PATCH" : "POST",
         data,
     });
@@ -375,9 +458,19 @@ itemForm.addEventListener("submit", async (event) => {
             showLogin("Sua sessão expirou. Entre novamente.", true);
             return;
         }
+        if (editingId && error.code === "ITEM_QUANTITY_CHANGED") {
+            await refreshItemQuantity(path, session);
+            return;
+        }
         const rejected = error.status >= 400 && error.status < 500;
-        itemNeedsReview = !rejected;
-        if (editingId && !rejected) uncertainEditFields = Object.keys(data);
+        if (!rejected) {
+            itemNeedsReview = true;
+            if (editingId) {
+                uncertainEditFields = Object.keys(data).filter(
+                    (field) => field !== "expectedTotalQuantity" && field !== "adjustmentReason",
+                );
+            }
+        }
         itemFormStatus.textContent = rejected
             ? error.message
             : "Não foi possível confirmar a gravação. Consulte o estoque antes de enviar novamente.";
