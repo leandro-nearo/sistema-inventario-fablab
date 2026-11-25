@@ -35,6 +35,8 @@ const itemFormStatus = document.querySelector("#item-form-status");
 const itemName = document.querySelector("#item-name");
 const itemLocation = document.querySelector("#item-location");
 const itemCategory = document.querySelector("#item-category");
+const itemMetadataInputs = { name: itemName, location: itemLocation, category: itemCategory };
+const itemMetadataLabels = { name: "nome", location: "localização", category: "categoria" };
 const itemQuantity = document.querySelector("#item-quantity");
 const registeredQuantity = document.querySelector("#item-registered-quantity");
 const itemAdjustment = document.querySelector("#item-adjustment");
@@ -164,12 +166,15 @@ function updateControls() {
     updateAdjustmentControls();
     saveItem.setAttribute("aria-disabled", String(saving));
     const refreshTotal = Boolean(editingItem?.totalNeedsRefresh);
-    saveItem.formNoValidate = refreshTotal;
-    saveItem.textContent = refreshTotal
-        ? "Consultar total atual"
-        : itemNeedsReview
-          ? "Reenviar item"
-          : "Salvar item";
+    const refreshFields = Boolean(editingItem?.fieldsNeedRefresh);
+    saveItem.formNoValidate = refreshTotal || refreshFields;
+    saveItem.textContent = refreshFields
+        ? "Consultar dados atuais"
+        : refreshTotal
+          ? "Consultar total atual"
+          : itemNeedsReview
+            ? "Reenviar item"
+            : "Salvar item";
     cancelItem.setAttribute("aria-disabled", String(saving));
     tableRegion.setAttribute("aria-busy", String(loading));
     pageLabel.textContent = `Página ${page}`;
@@ -471,7 +476,7 @@ next.addEventListener("click", () => void loadPage(page + 1, filters));
 function openItemDialog() {
     if (!tokens || pendingRequest) return;
     itemDialogTitle.textContent = editingItem ? "Editar item" : "Cadastrar item";
-    if (!itemNeedsReview) itemFormStatus.textContent = "";
+    if (!itemNeedsReview) itemFormStatus.textContent = editingItem?.reviewMessage ?? "";
     itemResult.textContent = "";
     itemDialog.showModal();
     updateControls();
@@ -508,6 +513,12 @@ function readItemFields() {
     };
 }
 
+function populateItemMetadata(item) {
+    for (const [key, input] of Object.entries(itemMetadataInputs)) {
+        input.value = item?.[key] ?? "";
+    }
+}
+
 function itemChanges() {
     const fields = readItemFields();
     if (!editingItem) return fields;
@@ -532,9 +543,7 @@ function selectItem(item) {
     if (switching && hasDraft && !window.confirm("Descartar o rascunho atual?")) return;
     if (switching || !hasDraft) {
         resetItemDraft();
-        itemName.value = item?.name ?? "";
-        itemLocation.value = item?.location ?? "";
-        itemCategory.value = item?.category ?? "";
+        populateItemMetadata(item);
         itemQuantity.value = item ? String(item.totalQuantity) : "";
         editingItem = item
             ? {
@@ -610,6 +619,11 @@ function refreshStockAfterRecords() {
 recordsDialog.addEventListener("close", refreshStockAfterRecords);
 clientLoanSearchDialog.addEventListener("close", refreshStockAfterRecords);
 
+function showItemReview(message) {
+    editingItem.reviewMessage = message;
+    itemFormStatus.textContent = message;
+}
+
 async function refreshItemQuantity(path, session) {
     itemListRefreshPage ??= page;
     editingItem.totalNeedsRefresh = true;
@@ -623,16 +637,60 @@ async function refreshItemQuantity(path, session) {
         editingItem.totalNeedsRefresh = false;
         uncertainEditFields = uncertainEditFields.filter((field) => field !== "totalQuantity");
         itemNeedsReview = uncertainEditFields.length > 0;
-        itemFormStatus.textContent = quantityChanged()
-            ? `O total registrado mudou para ${item.totalQuantity}. Revise o ajuste antes de salvar.`
-            : "O total registrado já corresponde ao valor informado.";
+        showItemReview(
+            quantityChanged()
+                ? `O total registrado mudou para ${item.totalQuantity}. Revise o ajuste antes de salvar.`
+                : "O total registrado já corresponde ao valor informado.",
+        );
     } catch (error) {
         if (session !== tokens) return;
         if (error.status === 401) {
             showLogin("Sua sessão expirou. Entre novamente.", true);
             return;
         }
-        itemFormStatus.textContent = error.message;
+        showItemReview(error.message);
+    }
+}
+
+async function refreshItemFields(path, session) {
+    itemListRefreshPage ??= page;
+    editingItem.fieldsNeedRefresh = true;
+    const draft = itemChanges();
+    const previous = editingItem.original;
+    try {
+        pendingRequest = requestWithSession(path, session);
+        updateControls();
+        itemFormStatus.textContent = "Consultando dados atuais do item…";
+        const item = await pendingRequest;
+        if (session !== tokens) return;
+        populateItemMetadata(item);
+        editingItem.baseline = readItemFields();
+        editingItem.original = item;
+        editingItem.fieldsNeedRefresh = false;
+        for (const [key, value] of Object.entries(draft)) {
+            itemMetadataInputs[key].value = value ?? "";
+        }
+        uncertainEditFields = uncertainEditFields.filter((field) => field === "totalQuantity");
+        itemNeedsReview = uncertainEditFields.length > 0;
+        const remaining = Object.keys(itemChanges());
+        const conflicts = remaining
+            .filter((key) => previous[key] !== item[key])
+            .map(
+                (key) => `${itemMetadataLabels[key]} ${item[key] ? `“${item[key]}”` : "sem valor"}`,
+            );
+        const message = conflicts.length
+            ? `O estoque registra ${conflicts.join(", ")}. Revise o rascunho antes de salvar.`
+            : remaining.length || quantityChanged()
+              ? "Dados atuais consultados. Revise o rascunho antes de salvar."
+              : "Os campos editados já correspondem aos dados atuais.";
+        showItemReview(message);
+    } catch (error) {
+        if (session !== tokens) return;
+        if (error.status === 401) {
+            showLogin("Sua sessão expirou. Entre novamente.", true);
+            return;
+        }
+        showItemReview(error.message);
     }
 }
 
@@ -642,9 +700,11 @@ itemForm.addEventListener("submit", async (event) => {
     if (pendingRequest || !session || !itemDialog.open) return;
     const editingId = editingItem?.id;
     const path = editingId ? `/item/${editingId}` : "/item";
-    if (editingItem?.totalNeedsRefresh) {
+    if (editingItem?.fieldsNeedRefresh || editingItem?.totalNeedsRefresh) {
+        saveItem.focus();
         try {
-            await refreshItemQuantity(path, session);
+            if (editingItem.fieldsNeedRefresh) await refreshItemFields(path, session);
+            else await refreshItemQuantity(path, session);
         } finally {
             pendingRequest = null;
             updateControls();
@@ -652,6 +712,11 @@ itemForm.addEventListener("submit", async (event) => {
         return;
     }
     const fields = itemChanges();
+    if (editingId && Object.keys(fields).length) {
+        fields.expectedFields = Object.fromEntries(
+            Object.keys(fields).map((key) => [key, editingItem.original[key]]),
+        );
+    }
     if (quantityChanged()) {
         fields.totalQuantity = itemQuantity.valueAsNumber;
         fields.expectedTotalQuantity = editingItem.totalQuantity;
@@ -697,12 +762,19 @@ itemForm.addEventListener("submit", async (event) => {
             await refreshItemQuantity(path, session);
             return;
         }
+        if (editingId && error.code === "ITEM_FIELDS_CHANGED") {
+            await refreshItemFields(path, session);
+            return;
+        }
         const rejected = error.status >= 400 && error.status < 500;
         if (!rejected) {
             itemNeedsReview = true;
             if (editingId) {
                 uncertainEditFields = Object.keys(data).filter(
-                    (field) => field !== "expectedTotalQuantity" && field !== "adjustmentReason",
+                    (field) =>
+                        !["expectedTotalQuantity", "expectedFields", "adjustmentReason"].includes(
+                            field,
+                        ),
                 );
             }
         }

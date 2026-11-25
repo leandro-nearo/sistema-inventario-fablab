@@ -42,6 +42,8 @@ A API usa `http://localhost:3000` por padrão. Abra [o estoque](http://localhost
 
 Selecione o nome de um item para editar seu nome, categoria ou localização. Para alterar a quantidade total, informe o motivo do ajuste.
 
+Se outra pessoa alterar o mesmo campo, a edição mostra o valor atual do estoque e mantém seu rascunho para revisão.
+
 Use **Registrar empréstimo** na edição do item. Busque pelo nome ou use o e-mail completo para localizar o cadastro exato. Selecione o cliente e informe a quantidade e o prazo de devolução no horário local. Se a tela perder a resposta da API, **Reenviar cadastro** usa a mesma tentativa nesta aba.
 
 Quando o cliente ainda não tiver cadastro, abra **Cadastrar cliente** no próprio empréstimo. Um e-mail já cadastrado aparece para conferência e seleção.

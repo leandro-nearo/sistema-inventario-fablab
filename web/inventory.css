@@ -276,6 +276,10 @@ button[aria-disabled="true"] {
     color: #425b56;
 }
 
+#item-form-status {
+    overflow-wrap: anywhere;
+}
+
 #login-status:empty,
 #item-result:empty,
 #records-result:empty,
