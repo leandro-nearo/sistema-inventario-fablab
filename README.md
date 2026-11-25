@@ -175,6 +175,8 @@ Aplique `npm run db:deploy` como etapa única de implantação antes de iniciar 
 
 Em bases com um histórico de empréstimos grande, aplique a migração `20261125000000_index_loan_history` em uma janela de manutenção. A criação dos índices bloqueia escritas na tabela `Loan` até o fim da migração.
 
+A migração `20261125010000_index_active_loans_by_item` cria, de forma concorrente, um índice parcial para as consultas de empréstimos ativos e atrasados por item.
+
 ## Testes de integração
 
 Use exclusivamente uma base descartável cujo nome contenha `test`:
