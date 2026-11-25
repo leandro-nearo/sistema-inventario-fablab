@@ -11,6 +11,8 @@ import {
 } from "@src/shared/errors/loan-state.error.js";
 import type { LoanCreationResult, LoanListEntryDTO, LoanListOptions } from "../loan.dtos.js";
 
+const upcomingWindowMs = 7 * 24 * 60 * 60 * 1000;
+
 export type LoanCreateData = {
     clientId: number;
     itemId: number;
@@ -137,15 +139,20 @@ export class PrismaLoanRepository implements LoanRepository {
         order,
     }: LoanListOptions) {
         const where: Prisma.LoanWhereInput =
-            status === "active"
-                ? { returnDate: null, cancelledAt: null }
+            status === "all"
+                ? {}
                 : status === "returned"
                   ? { returnDate: { not: null }, cancelledAt: null }
                   : status === "cancelled"
                     ? { cancelledAt: { not: null } }
-                    : status === "overdue"
-                      ? { returnDate: null, cancelledAt: null, dueDate: { lt: new Date() } }
-                      : {};
+                    : { returnDate: null, cancelledAt: null };
+        if (status === "overdue" || status === "upcoming") {
+            const now = Date.now();
+            where.dueDate =
+                status === "overdue"
+                    ? { lt: new Date(now) }
+                    : { gte: new Date(now), lte: new Date(now + upcomingWindowMs) };
+        }
         if (itemId !== undefined) where.itemId = itemId;
         if (clientId !== undefined) where.clientId = clientId;
 

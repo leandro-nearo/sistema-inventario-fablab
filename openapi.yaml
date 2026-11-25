@@ -567,9 +567,10 @@ paths:
         - $ref: "#/components/parameters/PageSize"
         - name: status
           in: query
+          description: upcoming filtra empréstimos ativos cujo prazo vence entre o horário atual do servidor e as próximas 168 horas, incluindo os limites.
           schema:
             type: string
-            enum: [all, active, returned, cancelled, overdue]
+            enum: [all, active, returned, cancelled, overdue, upcoming]
             default: all
         - name: itemId
           in: query

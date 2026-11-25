@@ -108,7 +108,9 @@ Para proteger uma edição de `name`, `category` ou `location`, envie o valor co
 | `PATCH` | `/loan/:id` | `ADMIN`, `OPERATOR` | `loanDate?`, `dueDate?`, `returnDate?` | `200 Loan` |
 | `DELETE` | `/loan/:id` | `ADMIN` | `expectedUpdatedAt?` | `204` |
 
-`status` aceita `all`, `active`, `returned`, `cancelled` e `overdue`. Definir `returnDate` devolve o estoque; definir `returnDate: null` reabre o empréstimo se houver estoque. `DELETE` cancela e preserva o registro.
+`status` aceita `all`, `active`, `returned`, `cancelled`, `overdue` e `upcoming`. Use `upcoming` para consultar empréstimos ativos com prazo entre o horário atual do servidor e as próximas 168 horas, incluindo os dois limites. Combine com `order=due` para ver o prazo mais próximo primeiro.
+
+Definir `returnDate` devolve o estoque; definir `returnDate: null` reabre o empréstimo se houver estoque. `DELETE` cancela e preserva o registro.
 
 Use `GET /loan?itemId=42&status=active` para listar empréstimos ativos do item 42. Use `GET /loan?clientId=12&status=active&include=itemLocation` para listar os empréstimos ativos do cliente 12 com nome e localização dos itens. É possível combinar os filtros de cliente, item e situação. A consulta retorna uma lista vazia quando nenhum empréstimo corresponde aos filtros.
 

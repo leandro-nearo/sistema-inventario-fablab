@@ -3,7 +3,7 @@ import { prisma } from "@src/lib/prisma.js";
 import { TokenService } from "@src/shared/services/token.service.js";
 import { Bcrypt } from "@src/shared/utils/bcrypt.js";
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const runDatabaseTests = process.env.RUN_DB_TESTS === "true";
 const databaseSuite = runDatabaseTests ? describe : describe.skip;
@@ -1110,6 +1110,50 @@ databaseSuite("inventory API integration", () => {
         await list().query({ include: "item,item" }).expect(400);
         await list().query({ include: "item,itemLocation" }).expect(400);
         await list().query({ order: "unknown" }).expect(400);
+    });
+
+    it("lists active loans due in the next seven days", async () => {
+        const user = await prisma.user.findUniqueOrThrow({
+            where: { email: "admin@example.com" },
+        });
+        const { accessToken } = TokenService.generate({ userId: String(user.id) });
+        const client = await prisma.client.create({
+            data: { name: "Oficina", email: "oficina@example.com" },
+        });
+        const item = await prisma.item.create({
+            data: { name: "Arduino", location: "A1", totalQuantity: 4, availableQuantity: 0 },
+        });
+        const now = new Date(Date.now());
+        const cutoff = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const data = {
+            itemId: item.id,
+            clientId: client.id,
+            loanDate: new Date("2020-01-01"),
+        };
+        const atCutoff = await prisma.loan.create({ data: { ...data, dueDate: cutoff } });
+        const atStart = await prisma.loan.create({ data: { ...data, dueDate: now } });
+        await prisma.loan.createMany({
+            data: [
+                { ...data, dueDate: new Date(now.getTime() - 1) },
+                { ...data, dueDate: new Date(cutoff.getTime() + 1) },
+                { ...data, dueDate: now, returnDate: now },
+                { ...data, dueDate: now, cancelledAt: now },
+            ],
+        });
+        const clock = vi.spyOn(Date, "now").mockReturnValue(now.getTime());
+        try {
+            const response = await request(app)
+                .get("/loan")
+                .set("Authorization", `Bearer ${accessToken}`)
+                .query({ status: "upcoming", order: "due", itemId: item.id, clientId: client.id })
+                .expect(200);
+            expect(response.body.map(({ id }: { id: number }) => id)).toEqual([
+                atStart.id,
+                atCutoff.id,
+            ]);
+        } finally {
+            clock.mockRestore();
+        }
     });
 
     it("uses the ID to order history pages when dates are equal", async () => {

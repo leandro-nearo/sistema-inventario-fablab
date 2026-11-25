@@ -5,6 +5,7 @@ import {
     positiveQuantitySchema,
 } from "@src/shared/validation/fields.js";
 import { z } from "zod";
+import { loanStatuses } from "./loan.dtos.js";
 
 export const loanCreationKeySchema = z
     .uuid("O cabeçalho Idempotency-Key deve conter um UUID.")
@@ -48,7 +49,7 @@ const loanFilterId = z
 export const loanListQuerySchema = z
     .object({
         ...paginationFields,
-        status: z.enum(["all", "active", "returned", "cancelled", "overdue"]).default("all"),
+        status: z.enum(loanStatuses).default("all"),
         itemId: loanFilterId,
         clientId: loanFilterId,
         include: z

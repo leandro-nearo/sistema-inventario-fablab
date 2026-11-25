@@ -23,8 +23,17 @@ export type LoanListEntryDTO = LoanDTO & {
 
 export type LoanCreationResult = { loan: LoanDTO; created: boolean };
 
+export const loanStatuses = [
+    "all",
+    "active",
+    "returned",
+    "cancelled",
+    "overdue",
+    "upcoming",
+] as const;
+
 export type LoanListOptions = Pagination & {
-    status: "all" | "active" | "returned" | "cancelled" | "overdue";
+    status: (typeof loanStatuses)[number];
     itemId?: number;
     clientId?: number;
     includeClient?: boolean;
