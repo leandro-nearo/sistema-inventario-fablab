@@ -54,7 +54,7 @@ Na tela principal do estoque, **Empréstimos atrasados** reúne os empréstimos 
 
 Use **Prorrogar prazo** em um empréstimo ativo e informe um novo prazo no horário local. Se outra pessoa alterar o empréstimo, confira o prazo atualizado antes de enviar novamente.
 
-Use **Registrar devolução** para devolver todas as unidades de um empréstimo. O estoque reflete a devolução ao voltar à lista de itens.
+Use **Registrar devolução** para devolver todas as unidades de um empréstimo. Se o empréstimo mudar antes da confirmação, confira o registro atualizado antes de tentar novamente. O estoque reflete a devolução ao voltar à lista de itens.
 
 Administradores podem usar **Cancelar empréstimo** na lista do item ou de atrasados. O cancelamento repõe todas as unidades no estoque e fica registrado no histórico.
 

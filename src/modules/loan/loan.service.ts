@@ -114,8 +114,10 @@ export class LoanService {
         return this.changeById(() => this.loanRepository.updateWithStock(id, data, actorId));
     }
 
-    returnById(id: number, actorId: number): Promise<LoanDTO> {
-        return this.changeById(() => this.loanRepository.returnWithStock(id, actorId));
+    returnById(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<LoanDTO> {
+        return this.changeById(() =>
+            this.loanRepository.returnWithStock(id, actorId, expectedUpdatedAt),
+        );
     }
 
     renewById(id: number, data: LoanRenewalData): Promise<LoanDTO> {

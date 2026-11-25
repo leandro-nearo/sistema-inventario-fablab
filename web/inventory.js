@@ -279,8 +279,9 @@ async function requestInDialog(dialog, path, options) {
     }
 }
 
-function returnLoan(id) {
-    return writeLoan(`/loan/${id}/return`, { method: "POST" }, "unavailable");
+function returnLoan(loan) {
+    const query = new URLSearchParams({ expectedUpdatedAt: loan.updatedAt });
+    return writeLoan(`/loan/${loan.id}/return?${query}`, { method: "POST" }, "unavailable");
 }
 
 async function cancelLoan(loan) {

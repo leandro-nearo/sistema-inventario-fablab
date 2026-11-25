@@ -417,7 +417,7 @@ databaseSuite("inventory API integration", () => {
         expect(reopenedItem.availableQuantity).toBe(1);
     });
 
-    it("returns stock once and preserves the first return record", async () => {
+    it("returns the current loan once and rejects a stale return after reopening", async () => {
         const admin = await prisma.user.findUniqueOrThrow({
             where: { email: "admin@example.com" },
         });
@@ -445,24 +445,50 @@ databaseSuite("inventory API integration", () => {
             },
         });
         const path = `/loan/${loan.id}/return`;
-        const returnLoan = (userId: number) => {
+        const returnLoan = (userId: number, expectedUpdatedAt = loan.updatedAt.toISOString()) => {
             const { accessToken } = TokenService.generate({ userId: String(userId) });
             return request(app)
                 .post(path)
                 .set("Authorization", `Bearer ${accessToken}`)
-                .expect(200);
+                .query({ expectedUpdatedAt });
         };
 
         await request(app).post(path).expect(401);
         const startedAt = Date.now();
-        const [first, second] = await Promise.all([returnLoan(operator.id), returnLoan(admin.id)]);
+        const [first, second] = await Promise.all([
+            returnLoan(operator.id).expect(200),
+            returnLoan(admin.id).expect(200),
+        ]);
         expect(first.body.id).toBe(loan.id);
         expect(first.body).toEqual(second.body);
         expect([operator.id, admin.id]).toContain(first.body.returnedById);
         const returnedAt = Date.parse(first.body.returnDate);
         expect(returnedAt).toBeGreaterThanOrEqual(startedAt);
         expect(returnedAt).toBeLessThanOrEqual(Date.now());
-        expect((await returnLoan(operator.id)).body).toEqual(first.body);
+        expect((await returnLoan(operator.id).expect(200)).body).toEqual(first.body);
+        await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
+            availableQuantity: 3,
+        });
+
+        const { accessToken } = TokenService.generate({ userId: String(admin.id) });
+        const reopened = await request(app)
+            .patch(`/loan/${loan.id}`)
+            .set("Authorization", `Bearer ${accessToken}`)
+            .send({ returnDate: null })
+            .expect(200);
+        const stale = await returnLoan(operator.id).expect(409);
+        expect(stale.body.error.code).toBe("LOAN_CHANGED");
+        await returnLoan(operator.id, "invalid").expect(400);
+        await expect(prisma.loan.findUnique({ where: { id: loan.id } })).resolves.toMatchObject({
+            returnDate: null,
+            returnedById: null,
+        });
+        await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
+            availableQuantity: 1,
+        });
+
+        const confirmed = await returnLoan(operator.id, reopened.body.updatedAt).expect(200);
+        expect(confirmed.body.returnedById).toBe(operator.id);
         await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
             availableQuantity: 3,
         });

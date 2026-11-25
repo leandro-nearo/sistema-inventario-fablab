@@ -101,7 +101,7 @@ Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `exp
 | `POST` | `/loan` | `ADMIN`, `OPERATOR` | `clientId`, `itemId`, `loanDate`, `dueDate`, `loanQuantity`, `returnDate?`; cabeçalho opcional `Idempotency-Key` | `201 Loan` na criação, `200 Loan` na repetição |
 | `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?`, `include?`, `order?` | `200 LoanListEntry[]` |
 | `GET` | `/loan/:id` | Autenticado | — | `200 Loan` |
-| `POST` | `/loan/:id/return` | `ADMIN`, `OPERATOR` | — | `200 Loan` |
+| `POST` | `/loan/:id/return` | `ADMIN`, `OPERATOR` | `expectedUpdatedAt?` | `200 Loan` |
 | `POST` | `/loan/:id/renew` | `ADMIN`, `OPERATOR` | `expectedUpdatedAt`, `dueDate` | `200 Loan` |
 | `PATCH` | `/loan/:id` | `ADMIN`, `OPERATOR` | `loanDate?`, `dueDate?`, `returnDate?` | `200 Loan` |
 | `DELETE` | `/loan/:id` | `ADMIN` | `expectedUpdatedAt?` | `204` |
@@ -117,6 +117,8 @@ Use `include=client`, `include=item` ou `include=client,item` para acrescentar `
 Ao criar um empréstimo, envie um UUID novo em `Idempotency-Key` e mantenha a mesma chave e os mesmos dados se precisar reenviar. A repetição pela mesma conta retorna o estado atual do empréstimo já criado. Usar a chave com outros dados válidos retorna `409 IDEMPOTENCY_KEY_CONFLICT`. Uma tentativa rejeitada antes da criação permite reutilizar a chave.
 
 `POST /loan/:id/return` registra a devolução com a data e hora do servidor. Se o empréstimo já foi devolvido, retorna o registro com a data e a conta responsável originais. Um empréstimo cancelado retorna `409 LOAN_CANCELLED`. Se a data do empréstimo ainda estiver no futuro, retorna `400 INVALID_LOAN_DATES`.
+
+Ao devolver, envie o `updatedAt` que recebeu na consulta no parâmetro de consulta `expectedUpdatedAt`. Se um empréstimo ativo estiver em outra versão, a API retorna `409 LOAN_CHANGED` e preserva o saldo.
 
 `POST /loan/:id/renew` prorroga o prazo sem alterar o saldo. Envie o `updatedAt` que recebeu na consulta em `expectedUpdatedAt` e um novo prazo futuro em `dueDate`. O novo prazo deve ser posterior ao atual. Se uma versão mais recente do empréstimo ainda estiver ativa e já tiver o prazo solicitado, a API retorna esse registro. Uma versão mais recente com outro prazo retorna `409 LOAN_CHANGED`. Empréstimos devolvidos ou cancelados retornam `409 LOAN_RETURNED` ou `409 LOAN_CANCELLED`.
 

@@ -726,8 +726,16 @@ paths:
       description: |
         Usa a data e hora do servidor. Uma nova chamada para um empréstimo já devolvido preserva a data e a conta responsável.
         Uma data de empréstimo futura impede a devolução e retorna INVALID_LOAN_DATES.
+        Se expectedUpdatedAt for informado e o empréstimo ativo estiver em outra versão, retorna LOAN_CHANGED.
       security:
         - bearerAuth: []
+      parameters:
+        - name: expectedUpdatedAt
+          in: query
+          description: Valor de updatedAt obtido na consulta do empréstimo.
+          schema:
+            type: string
+            format: date-time
       responses:
         "200":
           description: Empréstimo devolvido

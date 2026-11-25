@@ -242,11 +242,11 @@ export function createItemRecords(
                 await cancelLoan(loan);
                 message = `Empréstimo #${loan.id} cancelado.`;
             } else {
-                await returnLoan(loan.id);
+                await returnLoan(loan);
                 message = `Devolução do empréstimo #${loan.id} registrada.`;
             }
         } catch (error) {
-            if (cancelling && error.status === 409) refreshPage = page;
+            if (error.code === "LOAN_CHANGED") refreshPage = page;
             const operation = cancelling ? "o cancelamento" : "a devolução";
             message =
                 error.status >= 400 && error.status < 500

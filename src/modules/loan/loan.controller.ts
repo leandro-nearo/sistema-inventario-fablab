@@ -7,6 +7,8 @@ import { isoDateSchema, paginationFrom } from "@src/shared/validation/fields.js"
 import type { Request, Response } from "express";
 import { loanCreationKeySchema, loanListQuerySchema } from "./loan.schemas.js";
 
+const expectedLoanVersion = isoDateSchema.transform((value) => new Date(value)).optional();
+
 class LoanController {
     async create(req: Request, res: Response) {
         const data: CreateLoanDTO = req.body;
@@ -39,7 +41,8 @@ class LoanController {
     async returnById(req: Request, res: Response) {
         const id = Number(req.params.id);
         IdValidator.validate(id);
-        const loan = await loanService.returnById(id, Number(req.userId));
+        const expectedUpdatedAt = expectedLoanVersion.parse(req.query.expectedUpdatedAt);
+        const loan = await loanService.returnById(id, Number(req.userId), expectedUpdatedAt);
         return res.json(loan);
     }
 
@@ -90,12 +93,8 @@ class LoanController {
     async deleteById(req: Request, res: Response) {
         const loanId = Number(req.params.id);
         IdValidator.validate(loanId);
-        const expected = isoDateSchema.optional().parse(req.query.expectedUpdatedAt);
-        await loanService.cancelById(
-            loanId,
-            Number(req.userId),
-            expected === undefined ? undefined : new Date(expected),
-        );
+        const expectedUpdatedAt = expectedLoanVersion.parse(req.query.expectedUpdatedAt);
+        await loanService.cancelById(loanId, Number(req.userId), expectedUpdatedAt);
         return res.status(204).send();
     }
 }

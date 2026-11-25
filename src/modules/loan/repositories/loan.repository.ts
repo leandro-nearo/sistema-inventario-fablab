@@ -40,7 +40,7 @@ export interface LoanRepository {
     list(options: LoanListOptions): Promise<LoanListEntryDTO[]>;
     findById(id: number): Promise<Loan | null>;
     updateWithStock(id: number, data: LoanUpdateData, actorId: number): Promise<Loan | null>;
-    returnWithStock(id: number, actorId: number): Promise<Loan | null>;
+    returnWithStock(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<Loan | null>;
     renewDueDate(id: number, data: LoanRenewalData): Promise<Loan | null>;
     cancelWithStock(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<Loan | null>;
 }
@@ -161,8 +161,8 @@ export class PrismaLoanRepository implements LoanRepository {
         return this.changeWithStock(id, actorId, data);
     }
 
-    returnWithStock(id: number, actorId: number): Promise<Loan | null> {
-        return this.changeWithStock(id, actorId, "return");
+    returnWithStock(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<Loan | null> {
+        return this.changeWithStock(id, actorId, "return", expectedUpdatedAt);
     }
 
     renewDueDate(
@@ -200,6 +200,7 @@ export class PrismaLoanRepository implements LoanRepository {
         id: number,
         actorId: number,
         change: LoanUpdateData | "return",
+        expectedUpdatedAt?: Date,
     ): Promise<Loan | null> {
         return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             const existing = await findLockedLoan(tx, id);
@@ -210,6 +211,9 @@ export class PrismaLoanRepository implements LoanRepository {
 
             if (existing.cancelledAt !== null) throw new LoanCancelledError();
             if (change === "return" && existing.returnDate !== null) return existing;
+            if (expectedUpdatedAt && existing.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+                throw new LoanVersionConflictError();
+            }
 
             const data = change === "return" ? { returnDate: new Date() } : change;
             const loanDate = data.loanDate ?? existing.loanDate;
