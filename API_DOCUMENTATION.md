@@ -30,6 +30,8 @@ Status usuais: `400` validação/JSON, `401` autenticação, `403` papel insufic
 
 Um corpo JSON que excede o limite configurado em `JSON_BODY_LIMIT` recebe `413` com o código `PAYLOAD_TOO_LARGE`. O limite padrão é 100 KB.
 
+Um corpo JSON com codificação de caracteres ou de conteúdo não suportada recebe `415` com o código `UNSUPPORTED_MEDIA_TYPE`.
+
 ## Paginação
 
 Endpoints de lista aceitam `page` (padrão 1) e `pageSize` (padrão 50, máximo 100). A resposta continua sendo um array para manter compatibilidade.

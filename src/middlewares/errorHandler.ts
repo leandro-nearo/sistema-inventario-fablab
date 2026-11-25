@@ -38,6 +38,21 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
         );
     }
 
+    if (
+        err instanceof Error &&
+        "type" in err &&
+        (err.type === "charset.unsupported" || err.type === "encoding.unsupported")
+    ) {
+        return sendError(
+            res,
+            new AppError(
+                "Codificação do corpo da requisição não suportada.",
+                415,
+                "UNSUPPORTED_MEDIA_TYPE",
+            ),
+        );
+    }
+
     const error = toPrismaAppError(err);
     if (error) {
         if (error.statusCode >= 500) {
