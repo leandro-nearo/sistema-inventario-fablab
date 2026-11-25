@@ -100,12 +100,14 @@ select {
 #item-form input,
 #loan-fields input,
 #loan-fields select,
-#loan-client-create-fields input {
+#loan-client-create-fields input,
+#renewal-form input {
     margin-bottom: 1rem;
 }
 
 #item-dialog,
 #loan-dialog,
+#loan-renewal,
 #item-records {
     box-sizing: border-box;
     width: min(28rem, calc(100% - 2rem));
@@ -117,7 +119,8 @@ select {
 }
 
 #item-dialog h2,
-#loan-dialog h2 {
+#loan-dialog h2,
+#loan-renewal h2 {
     margin: 0 0 1rem;
 }
 
@@ -127,6 +130,7 @@ select {
 
 #item-dialog::backdrop,
 #loan-dialog::backdrop,
+#loan-renewal::backdrop,
 #item-records::backdrop {
     background: #142c2b99;
 }
@@ -273,6 +277,7 @@ button[aria-disabled="true"] {
 #records-result:empty,
 #loan-stock:empty,
 #loan-status:empty,
+#renewal-status:empty,
 #loan-client-create-status:empty,
 #item-form-status:empty {
     margin: 0;

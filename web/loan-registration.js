@@ -1,3 +1,5 @@
+import { parseLocalDateTime } from "./local-date-time.js";
+
 const dialog = document.querySelector("#loan-dialog");
 const itemName = document.querySelector("#loan-item");
 const stock = document.querySelector("#loan-stock");
@@ -229,12 +231,8 @@ export function createLoanRegistration(request, register) {
         const retry = Boolean(context.attempt);
         if (!retry) {
             const loanDate = new Date(context.serverTime + performance.now() - context.readAt);
-            const dueDate = new Date(due.value);
-            const localTime = dueDate.getTime() - dueDate.getTimezoneOffset() * 60_000;
-            if (
-                !Number.isFinite(localTime) ||
-                new Date(localTime).toISOString().slice(0, 16) !== due.value
-            ) {
+            const dueDate = parseLocalDateTime(due.value);
+            if (!dueDate) {
                 status.textContent = "Informe um horário local válido para a devolução.";
                 due.focus();
                 return;

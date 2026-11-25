@@ -72,7 +72,7 @@ function renderAdjustment(adjustment) {
     return entry;
 }
 
-function renderLoan(loan, confirmReturn) {
+function renderLoan(loan, confirmReturn, openRenewal) {
     const entry = document.createElement("li");
     const identifier = document.createElement("strong");
     const loanLabel = `Empréstimo #${loan.id}`;
@@ -94,11 +94,20 @@ function renderLoan(loan, confirmReturn) {
     returnButton.textContent = "Registrar devolução";
     returnButton.setAttribute("aria-label", `Registrar devolução do empréstimo #${loan.id}`);
     returnButton.addEventListener("click", () => void confirmReturn(loan));
-    entry.append(returnButton);
+    const renewButton = document.createElement("button");
+    renewButton.type = "button";
+    renewButton.className = "secondary";
+    renewButton.textContent = "Prorrogar prazo";
+    renewButton.setAttribute("aria-label", `Prorrogar prazo do empréstimo #${loan.id}`);
+    renewButton.addEventListener("click", () => openRenewal(loan, renewButton));
+    const actions = document.createElement("div");
+    actions.className = "dialog-actions";
+    actions.append(renewButton, returnButton);
+    entry.append(actions);
     return entry;
 }
 
-export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocus) {
+export function createItemRecords(dialog, fetchRecords, { returnLoan, renewLoan, fallbackFocus }) {
     let active = null;
     let page = 1;
     let hasNext = false;
@@ -159,7 +168,9 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
             page = requestedPage;
             hasNext = records.length === pageSize;
             const focusedEntry = entries.contains(document.activeElement);
-            entries.replaceChildren(...records.map((record) => view.render(record, confirmReturn)));
+            entries.replaceChildren(
+                ...records.map((record) => view.render(record, confirmReturn, openRenewal)),
+            );
             region.hidden = records.length === 0;
             region.scrollTop = 0;
             if (focusedEntry) (region.hidden ? closeButton : region).focus({ preventScroll: true });
@@ -179,6 +190,19 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
                 updateControls();
             }
         }
+    }
+
+    function openRenewal(loan, opener) {
+        if (active?.kind === "loans" && dialog.open && !loading && !returning) {
+            renewLoan(loan, opener);
+        }
+    }
+
+    function refresh(message = "") {
+        if (!active || !dialog.open) return;
+        result.textContent = message;
+        clearEntries();
+        void loadPage(1);
     }
 
     async function confirmReturn(loan) {
@@ -203,9 +227,7 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
         }
         returning = false;
         if (current !== active || !dialog.open) return;
-        result.textContent = message;
-        clearEntries();
-        void loadPage(1);
+        refresh(message);
     }
 
     function clearRecords() {
@@ -243,6 +265,7 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
     }
 
     return {
+        refresh,
         open(item, kind, opener) {
             if (dialog.open) return;
             clearRecords();

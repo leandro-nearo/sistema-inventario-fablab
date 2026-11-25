@@ -31,5 +31,13 @@ describe("inventory page", () => {
             .get("/inventario/loan-registration.js")
             .expect(200)
             .expect("Content-Type", /javascript/);
+        await request(app)
+            .get("/inventario/loan-renewal.js")
+            .expect(200)
+            .expect("Content-Type", /javascript/);
+        await request(app)
+            .get("/inventario/local-date-time.js")
+            .expect(200)
+            .expect("Content-Type", /javascript/);
     });
 });

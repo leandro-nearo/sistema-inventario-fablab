@@ -188,6 +188,20 @@
                         <button id="records-next" class="secondary" type="button" disabled>Próxima</button>
                     </nav>
                 </dialog>
+                <dialog id="loan-renewal" class="panel" aria-labelledby="renewal-title">
+                    <h2 id="renewal-title">Prorrogar prazo</h2>
+                    <p id="renewal-loan"></p>
+                    <p>Prazo atual <time id="renewal-current"></time></p>
+                    <form id="renewal-form" method="dialog">
+                        <label for="renewal-due">Novo prazo de devolução</label>
+                        <input id="renewal-due" type="datetime-local" required />
+                        <p id="renewal-status" role="status"></p>
+                        <div class="dialog-actions">
+                            <button id="close-renewal" class="secondary" type="button">Voltar aos empréstimos</button>
+                            <button id="save-renewal" type="submit">Salvar prazo</button>
+                        </div>
+                    </form>
+                </dialog>
             </section>
         </main>
         <noscript><p>Ative o JavaScript para consultar o estoque.</p></noscript>

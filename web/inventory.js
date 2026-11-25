@@ -1,5 +1,6 @@
 import { createItemRecords } from "./item-records.js";
 import { createLoanRegistration } from "./loan-registration.js";
+import { createLoanRenewal } from "./loan-renewal.js";
 
 const login = document.querySelector("#login");
 const loginForm = document.querySelector("#login-form");
@@ -43,9 +44,22 @@ const openHistory = document.querySelector("#open-adjustment-history");
 const openLoans = document.querySelector("#open-item-loans");
 const openLoanRegistration = document.querySelector("#open-loan-registration");
 const loanDialog = document.querySelector("#loan-dialog");
+const renewalDialog = document.querySelector("#loan-renewal");
 const recordsDialog = document.querySelector("#item-records");
-const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, returnLoan, cancelItem);
-const loanRegistration = createLoanRegistration(requestLoanRegistration, registerLoan);
+const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, {
+    returnLoan,
+    renewLoan: (loan, opener) => loanRenewal.open(loan, opener, tokens.userId),
+    fallbackFocus: cancelItem,
+});
+const loanRegistration = createLoanRegistration(
+    (path, options) => requestInDialog(loanDialog, path, options),
+    registerLoan,
+);
+const loanRenewal = createLoanRenewal(
+    (id, data) => writeLoan(`/loan/${id}/renew`, { data }),
+    (id, signal) => requestInDialog(renewalDialog, `/loan/${id}`, { signal }),
+    itemRecords.refresh,
+);
 
 const pageSize = 20;
 const defaultFilters = { search: "", availability: "", order: "desc" };
@@ -170,6 +184,7 @@ function showLogin(message, preserveDraft = false) {
     hasNext = false;
     itemListRefreshPage = null;
     searchForm.reset();
+    loanRenewal.close(preserveDraft);
     loanRegistration.close();
     itemRecords.close();
     itemDialog.close();
@@ -247,18 +262,13 @@ async function fetchItemRecords(kind, id, { page, pageSize, loanStatus, signal }
     }
 }
 
-async function requestLoanRegistration(path, options) {
+async function requestInDialog(dialog, path, options) {
     const session = tokens;
     if (!session) throw new Error("Sua sessão expirou.");
     try {
         return await requestWithSession(path, session, options);
     } catch (error) {
-        if (
-            error.status === 401 &&
-            session === tokens &&
-            !options.signal?.aborted &&
-            loanDialog.open
-        ) {
+        if (error.status === 401 && session === tokens && !options.signal?.aborted && dialog.open) {
             showLogin("Sua sessão expirou. Entre novamente.", true);
         }
         throw error;
@@ -282,8 +292,10 @@ async function registerLoan(data, idempotencyKey) {
 async function writeLoan(path, options, affectedAvailability) {
     const session = tokens;
     if (!session || pendingRequest) throw new Error("Aguarde a operação atual.");
-    if (filters.availability === affectedAvailability) itemListRefreshPage = 1;
-    else itemListRefreshPage ??= page;
+    if (affectedAvailability) {
+        if (filters.availability === affectedAvailability) itemListRefreshPage = 1;
+        else itemListRefreshPage ??= page;
+    }
     pendingRequest = requestWithSession(path, session, options);
     updateControls();
     try {
