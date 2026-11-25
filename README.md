@@ -62,6 +62,8 @@ Use **Registrar devolução** para devolver todas as unidades de um empréstimo.
 
 Para corrigir uma devolução registrada por engano, abra **Devolvidos** na lista do item ou do cliente e use **Reabrir empréstimo**. A ação volta a reservar todas as unidades, se houver saldo disponível.
 
+Administradores podem abrir **Reaberturas** em um empréstimo para consultar a devolução anterior e as contas responsáveis pela devolução e pela correção.
+
 Administradores podem usar **Cancelar empréstimo** em empréstimos ativos. O cancelamento repõe todas as unidades no estoque e fica registrado no histórico.
 
 Administradores podem abrir **Histórico de ajustes** na edição do item para consultar quantidades, motivos, datas e contas responsáveis.

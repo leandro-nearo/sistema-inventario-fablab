@@ -185,7 +185,7 @@
                             <button id="close-item-records" class="secondary" type="submit">Voltar ao item</button>
                         </form>
                     </div>
-                    <p id="records-item"></p>
+                    <p id="records-item" class="records-subject"></p>
                     <div id="loan-records-filters" hidden>
                         <label for="loan-records-status">Situação dos empréstimos</label>
                         <select id="loan-records-status">
@@ -200,13 +200,32 @@
                     <p id="records-result" role="status"></p>
                     <p id="records-status" role="status"></p>
                     <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: Os registros precisam receber foco para rolar pelo teclado. -->
-                    <section id="records-region" aria-label="Registros do item" tabindex="0" hidden>
-                        <ul id="records-entries"></ul>
+                    <section id="records-region" class="records-region" aria-label="Registros do item" tabindex="0" hidden>
+                        <ul id="records-entries" class="records-entries"></ul>
                     </section>
                     <nav id="records-pagination" class="pagination" aria-label="Páginas dos registros do item" hidden>
                         <button id="records-previous" class="secondary" type="button" disabled>Anterior</button>
                         <span id="records-page" tabindex="-1">Página 1</span>
                         <button id="records-next" class="secondary" type="button" disabled>Próxima</button>
+                    </nav>
+                </dialog>
+                <dialog id="loan-reopenings" class="panel" aria-labelledby="reopenings-title">
+                    <div class="inventory-heading">
+                        <h2 id="reopenings-title">Histórico de reaberturas</h2>
+                        <form method="dialog">
+                            <button id="close-reopenings" class="secondary" type="submit">Voltar aos empréstimos</button>
+                        </form>
+                    </div>
+                    <p id="reopenings-loan" class="records-subject"></p>
+                    <p id="reopenings-status" role="status"></p>
+                    <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: Os registros precisam receber foco para rolar pelo teclado. -->
+                    <section id="reopenings-region" class="records-region" aria-label="Registros de reabertura" tabindex="0" hidden>
+                        <ul id="reopenings-entries" class="records-entries"></ul>
+                    </section>
+                    <nav id="reopenings-pagination" class="pagination" aria-label="Páginas das reaberturas" hidden>
+                        <button id="reopenings-previous" class="secondary" type="button" disabled>Anterior</button>
+                        <span id="reopenings-page" tabindex="-1">Página 1</span>
+                        <button id="reopenings-next" class="secondary" type="button" disabled>Próxima</button>
                     </nav>
                 </dialog>
                 <dialog id="loan-renewal" class="panel" aria-labelledby="renewal-title">

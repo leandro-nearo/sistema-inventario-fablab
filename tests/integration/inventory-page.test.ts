@@ -17,6 +17,10 @@ describe("inventory page", () => {
             .expect(/<button id="open-loan-deadlines"[^>]*aria-haspopup="dialog"/)
             .expect(/<option value="upcoming">Próximos 7 dias<\/option>/)
             .expect(/<dialog id="item-dialog"[^>]*aria-labelledby="item-dialog-title"/);
+        await request(app)
+            .get("/inventario/loan-reopenings.js")
+            .expect(200)
+            .expect("Content-Type", /javascript/);
         expect(page.headers["content-security-policy"]).not.toContain("upgrade-insecure-requests");
         await request(app)
             .get("/inventario/inventory.css")

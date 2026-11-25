@@ -87,7 +87,7 @@ function createLoanAction(label, accessibleLabel, onClick) {
     return button;
 }
 
-function renderLoan(loan, confirmLoanChange, openRenewal, showClient) {
+function renderLoan(loan, { confirmLoanChange, openRenewal, openReopenings, showClient }) {
     const entry = document.createElement("li");
     const identifier = document.createElement("strong");
     const loanLabel = `Empréstimo #${loan.id}`;
@@ -108,47 +108,55 @@ function renderLoan(loan, confirmLoanChange, openRenewal, showClient) {
     entry.append(details, renderLoanDate("Prazo de devolução ", loan.dueDate));
     if (loan.returnDate) entry.append(renderLoanDate("Devolvido em ", loan.returnDate));
     if (loan.cancelledAt) entry.append(renderLoanDate("Cancelado em ", loan.cancelledAt));
-    if (loan.cancelledAt) return entry;
-
     const actions = document.createElement("div");
     actions.className = "dialog-actions";
-    entry.append(actions);
-    if (loan.returnDate) {
+    const historyButton = createLoanAction(
+        "Reaberturas",
+        `Histórico de reaberturas do empréstimo #${loan.id}`,
+        () => openReopenings(loan, historyButton),
+    );
+    historyButton.hidden = true;
+    historyButton.dataset.adminOnly = "";
+    historyButton.setAttribute("aria-haspopup", "dialog");
+    if (loan.cancelledAt) {
+        actions.append(historyButton);
+    } else if (loan.returnDate) {
         actions.append(
             createLoanAction(
                 "Reabrir empréstimo",
                 `Reabrir empréstimo #${loan.id}`,
                 () => void confirmLoanChange(loan, "reopen"),
             ),
+            historyButton,
         );
-        return entry;
+    } else {
+        const returnButton = createLoanAction(
+            "Registrar devolução",
+            `Registrar devolução do empréstimo #${loan.id}`,
+            () => void confirmLoanChange(loan, "return"),
+        );
+        const renewButton = createLoanAction(
+            "Prorrogar prazo",
+            `Prorrogar prazo do empréstimo #${loan.id}`,
+            () => openRenewal(loan, renewButton),
+        );
+        const cancelButton = createLoanAction(
+            "Cancelar empréstimo",
+            `Cancelar empréstimo #${loan.id}`,
+            () => void confirmLoanChange(loan, "cancel"),
+        );
+        cancelButton.hidden = true;
+        cancelButton.dataset.adminOnly = "";
+        actions.append(renewButton, returnButton, cancelButton, historyButton);
     }
-
-    const returnButton = createLoanAction(
-        "Registrar devolução",
-        `Registrar devolução do empréstimo #${loan.id}`,
-        () => void confirmLoanChange(loan, "return"),
-    );
-    const renewButton = createLoanAction(
-        "Prorrogar prazo",
-        `Prorrogar prazo do empréstimo #${loan.id}`,
-        () => openRenewal(loan, renewButton),
-    );
-    const cancelButton = createLoanAction(
-        "Cancelar empréstimo",
-        `Cancelar empréstimo #${loan.id}`,
-        () => void confirmLoanChange(loan, "cancel"),
-    );
-    cancelButton.hidden = true;
-    cancelButton.dataset.cancelLoan = "";
-    actions.append(renewButton, returnButton, cancelButton);
+    entry.append(actions);
     return entry;
 }
 
 export function createItemRecords(
     dialog,
     fetchRecords,
-    { returnLoan, renewLoan, cancelLoan, reopenLoan, fallbackFocus },
+    { returnLoan, renewLoan, cancelLoan, reopenLoan, showReopenings, fallbackFocus },
 ) {
     const loanChanges = {
         return: {
@@ -180,7 +188,7 @@ export function createItemRecords(
     let hasNext = false;
     let loading = null;
     let savingLoan = false;
-    let cancellationAllowed = false;
+    let adminAccess = false;
 
     function updateControls() {
         const focused = document.activeElement;
@@ -189,14 +197,14 @@ export function createItemRecords(
         next.disabled = !hasNext;
         for (const button of [previous, next, ...entries.querySelectorAll("button")]) {
             button.setAttribute("aria-disabled", String(busy || button.disabled));
-            if (button.hasAttribute("data-cancel-loan")) button.hidden = !cancellationAllowed;
+            if (button.hasAttribute("data-admin-only")) button.hidden = !adminAccess;
         }
         closeButton.setAttribute("aria-disabled", String(savingLoan));
         loanStatusField.disabled = savingLoan;
         region.setAttribute("aria-busy", String(busy));
         pageLabel.textContent = `Página ${page}`;
         if ((focused === previous || focused === next) && focused.disabled) pageLabel.focus();
-        if (dialog.open && focused?.hasAttribute("data-cancel-loan") && focused.hidden) {
+        if (dialog.open && focused?.hasAttribute("data-admin-only") && focused.hidden) {
             closeButton.focus();
         }
     }
@@ -239,11 +247,13 @@ export function createItemRecords(
             page = requestedPage;
             hasNext = nextPage ?? records.length === pageSize;
             const focusedEntry = entries.contains(document.activeElement);
-            entries.replaceChildren(
-                ...records.map((record) =>
-                    view.render(record, confirmLoanChange, openRenewal, !client),
-                ),
-            );
+            const renderOptions = {
+                confirmLoanChange,
+                openRenewal,
+                openReopenings,
+                showClient: !client,
+            };
+            entries.replaceChildren(...records.map((record) => view.render(record, renderOptions)));
             region.hidden = records.length === 0;
             region.scrollTop = 0;
             if (focusedEntry) (region.hidden ? closeButton : region).focus({ preventScroll: true });
@@ -272,6 +282,12 @@ export function createItemRecords(
         }
     }
 
+    function openReopenings(loan, opener) {
+        if (adminAccess && active?.kind === "loans" && dialog.open && !loading && !savingLoan) {
+            showReopenings(loan.id, opener);
+        }
+    }
+
     function refresh(message = "", requestedPage = 1) {
         if (!active || !dialog.open) return;
         result.textContent = message;
@@ -282,7 +298,7 @@ export function createItemRecords(
     async function confirmLoanChange(loan, action) {
         const current = active;
         if (current?.kind !== "loans" || !dialog.open || loading || savingLoan) return;
-        if (action === "cancel" && !cancellationAllowed) return;
+        if (action === "cancel" && !adminAccess) return;
         const change = loanChanges[action];
         const quantity = `${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
         if (!window.confirm(change.prompt(loan.id, quantity))) return;
@@ -342,9 +358,9 @@ export function createItemRecords(
 
     return {
         refresh,
-        setCancellationAllowed(allowed) {
-            if (allowed === cancellationAllowed) return;
-            cancellationAllowed = allowed;
+        setAdminAccess(allowed) {
+            if (allowed === adminAccess) return;
+            adminAccess = allowed;
             updateControls();
         },
         open({ item, client, kind = "loans", opener }) {

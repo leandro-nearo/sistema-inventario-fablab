@@ -2,6 +2,7 @@ import { createClientLoanSearch } from "./client-loan-search.js";
 import { createItemRecords } from "./item-records.js";
 import { createLoanRegistration } from "./loan-registration.js";
 import { createLoanRenewal } from "./loan-renewal.js";
+import { createLoanReopenings } from "./loan-reopenings.js";
 
 const login = document.querySelector("#login");
 const loginForm = document.querySelector("#login-form");
@@ -49,6 +50,7 @@ const openLoans = document.querySelector("#open-item-loans");
 const openLoanRegistration = document.querySelector("#open-loan-registration");
 const loanDialog = document.querySelector("#loan-dialog");
 const renewalDialog = document.querySelector("#loan-renewal");
+const reopeningsDialog = document.querySelector("#loan-reopenings");
 const recordsDialog = document.querySelector("#item-records");
 const clientLoanSearchDialog = document.querySelector("#client-loan-search");
 const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, {
@@ -56,6 +58,7 @@ const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, {
     cancelLoan,
     reopenLoan,
     renewLoan: (loan, opener) => loanRenewal.open(loan, opener, tokens.userId),
+    showReopenings: (id, opener) => loanReopenings.open(id, opener),
     fallbackFocus: cancelItem,
 });
 const clientLoanSearch = createClientLoanSearch(
@@ -73,6 +76,11 @@ const loanRenewal = createLoanRenewal(
     (id, data) => writeLoan(`/loan/${id}/renew`, { data }),
     (id, signal) => requestInDialog(renewalDialog, `/loan/${id}`, { signal }),
     itemRecords.refresh,
+);
+const loanReopenings = createLoanReopenings(
+    reopeningsDialog,
+    fetchLoanReopenings,
+    document.querySelector("#close-item-records"),
 );
 
 const pageSize = 20;
@@ -162,8 +170,10 @@ function updateControls() {
     }
     const saving = loading && itemDialog.open;
     itemFields.disabled = saving;
-    openHistory.hidden = !editingItem || tokens?.role !== "ADMIN";
-    itemRecords.setCancellationAllowed(tokens?.role === "ADMIN");
+    const adminAccess = tokens?.role === "ADMIN";
+    openHistory.hidden = !editingItem || !adminAccess;
+    itemRecords.setAdminAccess(adminAccess);
+    if (!adminAccess) loanReopenings.denyAccess();
     openLoans.hidden = !editingItem;
     openLoanRegistration.hidden = !editingItem;
     for (const button of [openHistory, openLoans, openLoanRegistration]) {
@@ -209,6 +219,7 @@ function showLogin(message, preserveDraft = false) {
     itemListRefreshPage = null;
     searchForm.reset();
     loanRenewal.close(preserveDraft);
+    loanReopenings.close();
     loanRegistration.close();
     itemRecords.close();
     clientLoanSearch.close();
@@ -303,6 +314,28 @@ async function requestInDialog(dialog, path, options) {
     } catch (error) {
         if (error.status === 401 && session === tokens && !options.signal?.aborted && dialog.open) {
             showLogin("Sua sessão expirou. Entre novamente.", true);
+        }
+        throw error;
+    }
+}
+
+async function fetchLoanReopenings(id, { page, pageSize, signal }) {
+    const session = tokens;
+    if (session?.role !== "ADMIN") throw new Error("Acesso negado.");
+    const query = new URLSearchParams({ page, pageSize });
+    try {
+        return await requestInDialog(reopeningsDialog, `/loan/${id}/reopenings?${query}`, {
+            signal,
+            withPageInfo: true,
+        });
+    } catch (error) {
+        if (
+            error.status === 403 &&
+            session === tokens &&
+            !signal.aborted &&
+            reopeningsDialog.open
+        ) {
+            clearAdminAccess(session);
         }
         throw error;
     }

@@ -109,6 +109,7 @@ select {
 #loan-dialog,
 #loan-renewal,
 #client-loan-search,
+#loan-reopenings,
 #item-records {
     box-sizing: border-box;
     width: min(28rem, calc(100% - 2rem));
@@ -126,6 +127,7 @@ select {
 }
 
 #item-records h2,
+#loan-reopenings h2,
 #client-loan-search h2 {
     margin: 0;
 }
@@ -134,11 +136,12 @@ select {
 #loan-dialog::backdrop,
 #loan-renewal::backdrop,
 #client-loan-search::backdrop,
+#loan-reopenings::backdrop,
 #item-records::backdrop {
     background: #142c2b99;
 }
 
-#records-item {
+.records-subject {
     margin: 0;
     font-weight: 650;
     overflow-wrap: anywhere;
@@ -149,27 +152,27 @@ select {
     margin-top: 0.75rem;
 }
 
-#records-region {
+.records-region {
     max-height: 45vh;
     overflow: auto;
 }
 
-#records-entries {
+.records-entries {
     margin: 0;
     padding: 0;
     list-style: none;
 }
 
-#records-entries li {
+.records-entries li {
     padding: 0.5rem;
     overflow-wrap: anywhere;
 }
 
-#records-entries li + li {
+.records-entries li + li {
     border-top: 1px solid #dce5e2;
 }
 
-#records-entries p {
+.records-entries p {
     margin: 0.25rem 0;
 }
 
