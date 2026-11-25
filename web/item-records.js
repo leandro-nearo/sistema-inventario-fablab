@@ -77,6 +77,16 @@ function renderAdjustment(adjustment) {
     return entry;
 }
 
+function createLoanAction(label, accessibleLabel, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary";
+    button.textContent = label;
+    button.setAttribute("aria-label", accessibleLabel);
+    button.addEventListener("click", onClick);
+    return button;
+}
+
 function renderLoan(loan, confirmLoanChange, openRenewal, showClient) {
     const entry = document.createElement("li");
     const identifier = document.createElement("strong");
@@ -98,40 +108,73 @@ function renderLoan(loan, confirmLoanChange, openRenewal, showClient) {
     entry.append(details, renderLoanDate("Prazo de devolução ", loan.dueDate));
     if (loan.returnDate) entry.append(renderLoanDate("Devolvido em ", loan.returnDate));
     if (loan.cancelledAt) entry.append(renderLoanDate("Cancelado em ", loan.cancelledAt));
-    if (closed) return entry;
+    if (loan.cancelledAt) return entry;
 
-    const returnButton = document.createElement("button");
-    returnButton.type = "button";
-    returnButton.className = "secondary";
-    returnButton.textContent = "Registrar devolução";
-    returnButton.setAttribute("aria-label", `Registrar devolução do empréstimo #${loan.id}`);
-    returnButton.addEventListener("click", () => void confirmLoanChange(loan, "return"));
-    const renewButton = document.createElement("button");
-    renewButton.type = "button";
-    renewButton.className = "secondary";
-    renewButton.textContent = "Prorrogar prazo";
-    renewButton.setAttribute("aria-label", `Prorrogar prazo do empréstimo #${loan.id}`);
-    renewButton.addEventListener("click", () => openRenewal(loan, renewButton));
-    const cancelButton = document.createElement("button");
-    cancelButton.type = "button";
-    cancelButton.className = "secondary";
-    cancelButton.hidden = true;
-    cancelButton.dataset.cancelLoan = "";
-    cancelButton.textContent = "Cancelar empréstimo";
-    cancelButton.setAttribute("aria-label", `Cancelar empréstimo #${loan.id}`);
-    cancelButton.addEventListener("click", () => void confirmLoanChange(loan, "cancel"));
     const actions = document.createElement("div");
     actions.className = "dialog-actions";
-    actions.append(renewButton, returnButton, cancelButton);
     entry.append(actions);
+    if (loan.returnDate) {
+        actions.append(
+            createLoanAction(
+                "Reabrir empréstimo",
+                `Reabrir empréstimo #${loan.id}`,
+                () => void confirmLoanChange(loan, "reopen"),
+            ),
+        );
+        return entry;
+    }
+
+    const returnButton = createLoanAction(
+        "Registrar devolução",
+        `Registrar devolução do empréstimo #${loan.id}`,
+        () => void confirmLoanChange(loan, "return"),
+    );
+    const renewButton = createLoanAction(
+        "Prorrogar prazo",
+        `Prorrogar prazo do empréstimo #${loan.id}`,
+        () => openRenewal(loan, renewButton),
+    );
+    const cancelButton = createLoanAction(
+        "Cancelar empréstimo",
+        `Cancelar empréstimo #${loan.id}`,
+        () => void confirmLoanChange(loan, "cancel"),
+    );
+    cancelButton.hidden = true;
+    cancelButton.dataset.cancelLoan = "";
+    actions.append(renewButton, returnButton, cancelButton);
     return entry;
 }
 
 export function createItemRecords(
     dialog,
     fetchRecords,
-    { returnLoan, renewLoan, cancelLoan, fallbackFocus },
+    { returnLoan, renewLoan, cancelLoan, reopenLoan, fallbackFocus },
 ) {
+    const loanChanges = {
+        return: {
+            save: returnLoan,
+            prompt: (id, quantity) => `Registrar a devolução de ${quantity} do empréstimo #${id}?`,
+            pending: "Registrando devolução…",
+            success: (id) => `Devolução do empréstimo #${id} registrada.`,
+            operation: "a devolução",
+        },
+        cancel: {
+            save: cancelLoan,
+            prompt: (id, quantity) =>
+                `Cancelar o empréstimo #${id} e devolver ${quantity} ao estoque?`,
+            pending: "Cancelando empréstimo…",
+            success: (id) => `Empréstimo #${id} cancelado.`,
+            operation: "o cancelamento",
+        },
+        reopen: {
+            save: reopenLoan,
+            prompt: (id, quantity) =>
+                `Reabrir o empréstimo #${id} e reservar ${quantity} do estoque?`,
+            pending: "Reabrindo empréstimo…",
+            success: (id) => `Empréstimo #${id} reaberto.`,
+            operation: "a reabertura",
+        },
+    };
     let active = null;
     let page = 1;
     let hasNext = false;
@@ -239,33 +282,25 @@ export function createItemRecords(
     async function confirmLoanChange(loan, action) {
         const current = active;
         if (current?.kind !== "loans" || !dialog.open || loading || savingLoan) return;
-        const cancelling = action === "cancel";
-        if (cancelling && !cancellationAllowed) return;
+        if (action === "cancel" && !cancellationAllowed) return;
+        const change = loanChanges[action];
         const quantity = `${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
-        const prompt = cancelling
-            ? `Cancelar o empréstimo #${loan.id} e devolver ${quantity} ao estoque?`
-            : `Registrar a devolução de ${quantity} do empréstimo #${loan.id}?`;
-        if (!window.confirm(prompt)) return;
+        if (!window.confirm(change.prompt(loan.id, quantity))) return;
         savingLoan = true;
         updateControls();
-        result.textContent = cancelling ? "Cancelando empréstimo…" : "Registrando devolução…";
+        result.textContent = change.pending;
         let message;
         let refreshPage = 1;
         try {
-            if (cancelling) {
-                await cancelLoan(loan);
-                message = `Empréstimo #${loan.id} cancelado.`;
-            } else {
-                await returnLoan(loan);
-                message = `Devolução do empréstimo #${loan.id} registrada.`;
-            }
+            await change.save(loan);
+            message = change.success(loan.id);
         } catch (error) {
-            if (error.code === "LOAN_CHANGED") refreshPage = page;
-            const operation = cancelling ? "o cancelamento" : "a devolução";
-            message =
-                error.status >= 400 && error.status < 500
-                    ? error.message
-                    : `Não foi possível confirmar ${operation}. Consulte a lista antes de repetir.`;
+            const rejected = error.status >= 400 && error.status < 500;
+            if (error.code === "LOAN_CHANGED" || (action === "reopen" && rejected))
+                refreshPage = page;
+            message = rejected
+                ? error.message
+                : `Não foi possível confirmar ${change.operation}. Consulte a lista antes de repetir.`;
         }
         savingLoan = false;
         if (current !== active || !dialog.open) return;

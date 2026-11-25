@@ -54,6 +54,7 @@ const clientLoanSearchDialog = document.querySelector("#client-loan-search");
 const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, {
     returnLoan,
     cancelLoan,
+    reopenLoan,
     renewLoan: (loan, opener) => loanRenewal.open(loan, opener, tokens.userId),
     fallbackFocus: cancelItem,
 });
@@ -310,6 +311,15 @@ async function requestInDialog(dialog, path, options) {
 function returnLoan(loan) {
     const query = new URLSearchParams({ expectedUpdatedAt: loan.updatedAt });
     return writeLoan(`/loan/${loan.id}/return?${query}`, { method: "POST" }, "unavailable");
+}
+
+function reopenLoan(loan) {
+    const query = new URLSearchParams({ expectedUpdatedAt: loan.updatedAt });
+    return writeLoan(
+        `/loan/${loan.id}?${query}`,
+        { method: "PATCH", data: { returnDate: null } },
+        "available",
+    );
 }
 
 async function cancelLoan(loan) {

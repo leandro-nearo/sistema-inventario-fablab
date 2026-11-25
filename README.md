@@ -60,6 +60,8 @@ Use **Prorrogar prazo** em um empréstimo ativo e informe um novo prazo no horá
 
 Use **Registrar devolução** para devolver todas as unidades de um empréstimo. Se o empréstimo mudar antes da confirmação, confira o registro atualizado antes de tentar novamente. O estoque reflete a devolução ao voltar à lista de itens.
 
+Para corrigir uma devolução registrada por engano, abra **Devolvidos** na lista do item ou do cliente e use **Reabrir empréstimo**. A ação volta a reservar todas as unidades, se houver saldo disponível.
+
 Administradores podem usar **Cancelar empréstimo** em empréstimos ativos. O cancelamento repõe todas as unidades no estoque e fica registrado no histórico.
 
 Administradores podem abrir **Histórico de ajustes** na edição do item para consultar quantidades, motivos, datas e contas responsáveis.
