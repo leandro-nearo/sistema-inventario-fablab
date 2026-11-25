@@ -22,6 +22,7 @@ export type UpdateItemDTO = {
     name?: string;
     category?: string | null;
     totalQuantity?: number;
+    expectedTotalQuantity?: number;
     location?: string;
     adjustmentReason?: string;
 };

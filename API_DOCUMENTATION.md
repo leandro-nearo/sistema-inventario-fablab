@@ -78,7 +78,7 @@ A senha deve ter 12 ou mais caracteres e no máximo 72 bytes. Alterá-la revoga 
 | `GET` | `/item/by-location` | Autenticado | `location`, paginação | `200 Item[]` |
 | `GET` | `/item/:id` | Autenticado | — | `200 Item` |
 | `GET` | `/item/:id/adjustments` | `ADMIN` | paginação | `200 InventoryAdjustment[]` |
-| `PATCH` | `/item/:id` | `ADMIN`, `OPERATOR` | `name?`, `category?`, `totalQuantity?`, `adjustmentReason?`, `location?` | `200 Item` |
+| `PATCH` | `/item/:id` | `ADMIN`, `OPERATOR` | `name?`, `category?`, `totalQuantity?`, `expectedTotalQuantity?`, `adjustmentReason?`, `location?` | `200 Item` |
 | `DELETE` | `/item/:id` | `ADMIN` | — | `204` |
 
 Em `GET /item`, `availability=available` seleciona itens com quantidade disponível maior que zero. `availability=unavailable` seleciona itens com quantidade disponível zero, inclusive quando todas as unidades estão emprestadas. Omita `availability` para incluir todos os itens.
@@ -86,6 +86,8 @@ Em `GET /item`, `availability=available` seleciona itens com quantidade disponí
 Use `order=desc` para listar os itens do maior para o menor ID. A API usa `order=asc` por padrão. A tela de estoque abre em ordem decrescente por ID.
 
 `totalQuantity` é inteiro e não-negativo. `availableQuantity` é calculado pelo servidor. Alterar `totalQuantity` exige `adjustmentReason` (3–200 caracteres) e gera uma entrada de auditoria. `category: null` remove a categoria. A quantidade total não pode ficar abaixo das unidades atualmente emprestadas. Itens com histórico ou ajustes não podem ser apagados (`409`).
+
+Ao enviar `totalQuantity`, inclua a quantidade total que você consultou em `expectedTotalQuantity` para proteger a alteração contra ajustes simultâneos. Se o valor informado divergir do total gravado, a API retorna `409` com `ITEM_QUANTITY_CHANGED` e rejeita a atualização inteira.
 
 ## Empréstimos
 

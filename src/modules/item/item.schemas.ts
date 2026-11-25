@@ -35,6 +35,7 @@ export const updateItemSchema = z
         name: nameSchema.optional(),
         category: categorySchema.nullable().optional(),
         totalQuantity: quantitySchema.optional(),
+        expectedTotalQuantity: quantitySchema.optional(),
         location: locationSchema.optional(),
         adjustmentReason: postgresTextSchema().trim().min(3).max(200).optional(),
     })
@@ -58,6 +59,13 @@ export const updateItemSchema = z
                 code: "custom",
                 path: ["adjustmentReason"],
                 message: "O motivo só pode ser usado com totalQuantity.",
+            });
+        }
+        if (data.totalQuantity === undefined && data.expectedTotalQuantity !== undefined) {
+            context.addIssue({
+                code: "custom",
+                path: ["expectedTotalQuantity"],
+                message: "A quantidade atual só pode ser usada com totalQuantity.",
             });
         }
     });

@@ -904,6 +904,11 @@ components:
           type: integer
           minimum: 0
           maximum: 2147483647
+        expectedTotalQuantity:
+          description: Total consultado antes do ajuste. Use com totalQuantity. A API retorna 409 com ITEM_QUANTITY_CHANGED se o total tiver mudado.
+          type: integer
+          minimum: 0
+          maximum: 2147483647
         adjustmentReason:
           type: string
           minLength: 3

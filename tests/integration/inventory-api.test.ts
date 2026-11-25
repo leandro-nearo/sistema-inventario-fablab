@@ -368,6 +368,40 @@ databaseSuite("inventory API integration", () => {
         expect(reopenedItem.availableQuantity).toBe(1);
     });
 
+    it("rejects a stock adjustment based on an old total quantity", async () => {
+        const authorization = { Authorization: `Bearer ${await accessToken()}` };
+        const item = await prisma.item.create({ data: { name: "Arduino", location: "A1" } });
+        const path = `/item/${item.id}`;
+        const patch = () => request(app).patch(path).set(authorization);
+
+        await patch().send({ location: "A2", expectedTotalQuantity: 0 }).expect(400);
+
+        const reason = "Contagem de estoque";
+        const responses = await Promise.all(
+            [2, 3].map((totalQuantity) =>
+                patch().send({
+                    name: `Arduino ${totalQuantity}`,
+                    expectedTotalQuantity: 0,
+                    totalQuantity,
+                    adjustmentReason: reason,
+                }),
+            ),
+        );
+        expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+        const rejected = responses.find((response) => response.status === 409);
+        expect(rejected?.body.error.code).toBe("ITEM_QUANTITY_CHANGED");
+
+        const saved = await prisma.item.findUniqueOrThrow({ where: { id: item.id } });
+        expect(saved).toMatchObject({
+            name: `Arduino ${saved.totalQuantity}`,
+            availableQuantity: saved.totalQuantity,
+        });
+        expect(saved.location).toBe("A1");
+        expect(
+            await prisma.inventoryAdjustment.findMany({ where: { itemId: item.id } }),
+        ).toMatchObject([{ previousTotal: 0, newTotal: saved.totalQuantity, reason }]);
+    });
+
     it("reserves the last unit once and keeps a loan closed when stock is empty", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const client = await prisma.client.create({

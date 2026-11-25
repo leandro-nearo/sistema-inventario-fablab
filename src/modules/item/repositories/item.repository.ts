@@ -3,17 +3,10 @@ import { prisma } from "@src/lib/prisma.js";
 import {
     InventoryCapacityError,
     InventoryInvariantError,
+    InventoryQuantityChangedError,
 } from "@src/shared/errors/inventory-capacity.error.js";
 import { escapeLikePattern } from "@src/shared/utils/postgres-like.js";
-import type { ItemListOptions } from "../item.dtos.js";
-
-export type ItemUpdateData = {
-    name?: string;
-    category?: string | null;
-    totalQuantity?: number;
-    location?: string;
-    adjustmentReason?: string;
-};
+import type { ItemListOptions, UpdateItemDTO } from "../item.dtos.js";
 
 export interface ItemRepository {
     create(data: Prisma.ItemCreateInput): Promise<Item>;
@@ -23,7 +16,7 @@ export interface ItemRepository {
     listByLocation(location: string, pagination: { skip: number; take: number }): Promise<Item[]>;
     updateWithStockInvariant(
         id: number,
-        data: ItemUpdateData,
+        data: UpdateItemDTO,
         actorId: number,
     ): Promise<Item | null>;
     listAdjustments(
@@ -84,7 +77,7 @@ export class PrismaItemRepository implements ItemRepository {
 
     updateWithStockInvariant(
         id: number,
-        data: ItemUpdateData,
+        data: UpdateItemDTO,
         actorId: number,
     ): Promise<Item | null> {
         return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -99,6 +92,13 @@ export class PrismaItemRepository implements ItemRepository {
                 existing.totalQuantity < existing.availableQuantity
             ) {
                 throw new InventoryInvariantError();
+            }
+
+            if (
+                data.expectedTotalQuantity !== undefined &&
+                data.expectedTotalQuantity !== existing.totalQuantity
+            ) {
+                throw new InventoryQuantityChangedError();
             }
 
             const borrowedQuantity = existing.totalQuantity - existing.availableQuantity;
