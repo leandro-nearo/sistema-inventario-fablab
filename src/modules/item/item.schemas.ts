@@ -5,6 +5,7 @@ import {
     searchSchema,
 } from "@src/shared/validation/fields.js";
 import { z } from "zod";
+import { itemMetadataFields } from "./item.dtos.js";
 
 const nameSchema = postgresTextSchema("O nome do item é obrigatório.")
     .trim()
@@ -36,6 +37,18 @@ export const updateItemSchema = z
         category: categorySchema.nullable().optional(),
         totalQuantity: quantitySchema.optional(),
         expectedTotalQuantity: quantitySchema.optional(),
+        expectedFields: z
+            .object({
+                name: postgresTextSchema().optional(),
+                location: postgresTextSchema().optional(),
+                category: postgresTextSchema().nullable().optional(),
+            })
+            .strict()
+            .refine(
+                (fields) => Object.keys(fields).length > 0,
+                "Informe ao menos um valor consultado.",
+            )
+            .optional(),
         location: locationSchema.optional(),
         adjustmentReason: postgresTextSchema().trim().min(3).max(200).optional(),
     })
@@ -67,6 +80,15 @@ export const updateItemSchema = z
                 path: ["expectedTotalQuantity"],
                 message: "A quantidade atual só pode ser usada com totalQuantity.",
             });
+        }
+        for (const field of itemMetadataFields) {
+            if (data.expectedFields?.[field] !== undefined && data[field] === undefined) {
+                context.addIssue({
+                    code: "custom",
+                    path: ["expectedFields", field],
+                    message: "Envie o valor consultado apenas para campos que deseja atualizar.",
+                });
+            }
         }
     });
 

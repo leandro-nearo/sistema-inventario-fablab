@@ -1088,6 +1088,18 @@ components:
           type: integer
           minimum: 0
           maximum: 2147483647
+        expectedFields:
+          description: Valores consultados dos campos que também serão atualizados. A API retorna 409 com ITEM_FIELDS_CHANGED se algum valor tiver mudado.
+          type: object
+          additionalProperties: false
+          minProperties: 1
+          properties:
+            name:
+              type: string
+            category:
+              type: [string, "null"]
+            location:
+              type: string
         adjustmentReason:
           type: string
           minLength: 3

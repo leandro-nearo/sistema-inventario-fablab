@@ -602,6 +602,56 @@ databaseSuite("inventory API integration", () => {
         ).toMatchObject([{ previousTotal: 0, newTotal: saved.totalQuantity, reason }]);
     });
 
+    it("rejects changes to item fields that changed since the read", async () => {
+        const admin = await prisma.user.findUniqueOrThrow({
+            where: { email: "admin@example.com" },
+        });
+        const { accessToken } = TokenService.generate({ userId: String(admin.id) });
+        const authorization = { Authorization: `Bearer ${accessToken}` };
+        const item = await prisma.item.create({ data: { name: "Arduino", location: " A1 " } });
+        const patch = () => request(app).patch(`/item/${item.id}`).set(authorization);
+
+        await patch()
+            .send({ expectedFields: { location: item.location } })
+            .expect(400);
+        await patch().send({ location: "A2", expectedFields: {} }).expect(400);
+        await patch()
+            .send({ location: "A2", expectedFields: { location: null } })
+            .expect(400);
+
+        const responses = await Promise.all(
+            ["A2", "A3"].map((location) =>
+                patch().send({ location, expectedFields: { location: item.location } }),
+            ),
+        );
+        expect(responses.map(({ status }) => status).sort()).toEqual([200, 409]);
+        const moved = responses.find(({ status }) => status === 200)?.body;
+        expect(responses.find(({ status }) => status === 409)?.body.error.code).toBe(
+            "ITEM_FIELDS_CHANGED",
+        );
+        await patch()
+            .send({ category: "Eletrônica", expectedFields: { category: null } })
+            .expect(200);
+        const stale = await patch()
+            .send({
+                location: "A4",
+                name: "Arduino UNO",
+                expectedFields: { location: item.location, name: item.name },
+                totalQuantity: 2,
+                expectedTotalQuantity: 0,
+                adjustmentReason: "Contagem",
+            })
+            .expect(409);
+        expect(stale.body.error.code).toBe("ITEM_FIELDS_CHANGED");
+        await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
+            location: moved.location,
+            name: item.name,
+            category: "Eletrônica",
+            totalQuantity: 0,
+        });
+        expect(await prisma.inventoryAdjustment.count({ where: { itemId: item.id } })).toBe(0);
+    });
+
     it("reserves the last unit once and keeps a loan closed when stock is empty", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         const client = await prisma.client.create({

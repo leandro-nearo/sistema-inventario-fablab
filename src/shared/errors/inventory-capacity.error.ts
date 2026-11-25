@@ -18,3 +18,10 @@ export class InventoryQuantityChangedError extends Error {
         this.name = "InventoryQuantityChangedError";
     }
 }
+
+export class InventoryFieldsChangedError extends Error {
+    constructor() {
+        super("One or more item fields changed");
+        this.name = "InventoryFieldsChangedError";
+    }
+}

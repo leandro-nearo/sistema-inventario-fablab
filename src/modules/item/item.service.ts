@@ -15,6 +15,7 @@ import {
 import { AppError } from "@src/shared/errors/app.error.js";
 import {
     InventoryCapacityError,
+    InventoryFieldsChangedError,
     InventoryInvariantError,
     InventoryQuantityChangedError,
 } from "@src/shared/errors/inventory-capacity.error.js";
@@ -81,6 +82,13 @@ export class ItemService {
                     "A quantidade total mudou. Consulte o estoque antes de ajustar novamente.",
                     409,
                     "ITEM_QUANTITY_CHANGED",
+                );
+            }
+            if (error instanceof InventoryFieldsChangedError) {
+                throw new AppError(
+                    "Os dados do item mudaram. Consulte o item antes de salvar novamente.",
+                    409,
+                    "ITEM_FIELDS_CHANGED",
                 );
             }
             if (error instanceof InventoryCapacityError) {

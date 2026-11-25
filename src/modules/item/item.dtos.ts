@@ -18,11 +18,14 @@ export type CreateItemDTO = {
     location: string;
 };
 
+export const itemMetadataFields = ["name", "category", "location"] as const;
+
 export type UpdateItemDTO = {
     name?: string;
     category?: string | null;
     totalQuantity?: number;
     expectedTotalQuantity?: number;
+    expectedFields?: Partial<Pick<ItemDTO, (typeof itemMetadataFields)[number]>>;
     location?: string;
     adjustmentReason?: string;
 };

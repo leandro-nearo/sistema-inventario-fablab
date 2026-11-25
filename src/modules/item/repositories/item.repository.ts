@@ -2,11 +2,12 @@ import type { InventoryAdjustment, Item, Prisma } from "@src/generated/prisma/cl
 import { prisma } from "@src/lib/prisma.js";
 import {
     InventoryCapacityError,
+    InventoryFieldsChangedError,
     InventoryInvariantError,
     InventoryQuantityChangedError,
 } from "@src/shared/errors/inventory-capacity.error.js";
 import { escapeLikePattern } from "@src/shared/utils/postgres-like.js";
-import type { ItemListOptions, UpdateItemDTO } from "../item.dtos.js";
+import { type ItemListOptions, itemMetadataFields, type UpdateItemDTO } from "../item.dtos.js";
 
 export interface ItemRepository {
     create(data: Prisma.ItemCreateInput): Promise<Item>;
@@ -99,6 +100,16 @@ export class PrismaItemRepository implements ItemRepository {
                 data.expectedTotalQuantity !== existing.totalQuantity
             ) {
                 throw new InventoryQuantityChangedError();
+            }
+
+            const expected = data.expectedFields;
+            if (
+                expected &&
+                itemMetadataFields.some(
+                    (field) => expected[field] !== undefined && expected[field] !== existing[field],
+                )
+            ) {
+                throw new InventoryFieldsChangedError();
             }
 
             const borrowedQuantity = existing.totalQuantity - existing.availableQuantity;
