@@ -29,6 +29,7 @@ export type UpdateItemDTO = {
 export type ItemListOptions = Pagination & {
     search?: string;
     availability?: "available" | "unavailable";
+    order?: "asc" | "desc";
 };
 
 export type ListByCategoryDTO = {

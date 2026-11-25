@@ -22,6 +22,7 @@ class ItemController {
         const query = itemListQuerySchema.parse(req.query);
         const items = await itemService.list({
             ...paginationFrom(query),
+            order: query.order,
             ...(query.search ? { search: query.search } : {}),
             ...(query.availability ? { availability: query.availability } : {}),
         });

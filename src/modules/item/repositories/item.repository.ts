@@ -38,7 +38,7 @@ export class PrismaItemRepository implements ItemRepository {
         return prisma.item.create({ data });
     }
 
-    list({ skip, take, search, availability }: ItemListOptions) {
+    list({ skip, take, search, availability, order = "asc" }: ItemListOptions) {
         const where: Prisma.ItemWhereInput = {};
         const pattern = search && escapeLikePattern(search);
         if (pattern) {
@@ -54,7 +54,7 @@ export class PrismaItemRepository implements ItemRepository {
 
         return prisma.item.findMany({
             where,
-            orderBy: { id: "asc" },
+            orderBy: { id: order },
             skip,
             take,
         });

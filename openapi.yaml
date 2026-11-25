@@ -374,6 +374,13 @@ paths:
           schema:
             type: string
             enum: [available, unavailable]
+        - name: order
+          in: query
+          description: Ordem por ID.
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
       responses:
         "200":
           description: Itens

@@ -161,9 +161,9 @@ button[aria-disabled="true"] {
 
 .search-controls {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
     align-items: end;
-    max-width: 48rem;
+    max-width: 56rem;
     gap: 0.5rem;
 }
 
@@ -214,15 +214,22 @@ tr > :nth-child(3) {
     font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 36rem) {
+@media (max-width: 42rem) {
     .search-controls {
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .search-term {
-        grid-column: span 2;
+    .search-term,
+    .search-controls button {
+        grid-column: 1 / -1;
     }
 
+    .search-controls button {
+        justify-self: end;
+    }
+}
+
+@media (max-width: 36rem) {
     .table-hint {
         display: block;
         margin: 0 0 0.5rem;

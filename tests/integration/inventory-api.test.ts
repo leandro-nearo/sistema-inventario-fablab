@@ -251,7 +251,7 @@ databaseSuite("inventory API integration", () => {
         expect(await prisma.item.count()).toBe(0);
     });
 
-    it("filters items by available quantity", async () => {
+    it("filters and sorts items before pagination", async () => {
         const authorization = { Authorization: `Bearer ${await accessToken()}` };
         await prisma.item.createMany({
             data: [
@@ -267,6 +267,8 @@ databaseSuite("inventory API integration", () => {
             [{ availability: "unavailable" }, ["Cabo HDMI", "Adaptador"]],
             [{ availability: "unavailable", page: 2, pageSize: 1 }, ["Adaptador"]],
             [{}, ["Cabo USB", "Cabo HDMI", "Alicate", "Adaptador"]],
+            [{ order: "desc" }, ["Adaptador", "Alicate", "Cabo HDMI", "Cabo USB"]],
+            [{ order: "desc", availability: "unavailable", page: 2, pageSize: 1 }, ["Cabo HDMI"]],
         ] as const;
         for (const [query, names] of cases) {
             const { body } = await request(app)
@@ -283,6 +285,8 @@ databaseSuite("inventory API integration", () => {
             .query({ availability: "unknown" })
             .expect(400);
         expect(invalid.body.error.code).toBe("VALIDATION_ERROR");
+
+        await request(app).get("/item").set(authorization).query({ order: "unknown" }).expect(400);
     });
 
     it.each(["client@example.com", "CLIENT@EXAMPLE.COM"])(

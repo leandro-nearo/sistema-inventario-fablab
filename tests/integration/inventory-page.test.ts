@@ -12,6 +12,7 @@ describe("inventory page", () => {
             .expect("Content-Security-Policy", /script-src 'self'/)
             .expect(/Estoque de itens/)
             .expect(/<label for="availability">Disponibilidade<\/label>/)
+            .expect(/<label for="order">Ordenação<\/label>/)
             .expect(/<dialog id="item-dialog"[^>]*aria-labelledby="item-dialog-title"/);
         expect(page.headers["content-security-policy"]).not.toContain("upgrade-insecure-requests");
         await request(app)

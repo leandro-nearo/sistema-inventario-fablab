@@ -10,6 +10,7 @@ const inventoryTitle = document.querySelector("#inventory-title");
 const searchForm = document.querySelector("#search-form");
 const searchField = document.querySelector("#search");
 const availabilityField = document.querySelector("#availability");
+const orderField = document.querySelector("#order");
 const searchButton = searchForm.querySelector("button");
 const inventoryStatus = document.querySelector("#inventory-status");
 const tableRegion = document.querySelector("#table-region");
@@ -29,9 +30,10 @@ const cancelItem = document.querySelector("#cancel-item");
 const itemResult = document.querySelector("#item-result");
 
 const pageSize = 20;
+const defaultFilters = { search: "", availability: "", order: "desc" };
 let tokens = null;
 let page = 1;
-let filters = { search: "", availability: "" };
+let filters = defaultFilters;
 let hasNext = false;
 let pendingRequest = null;
 let retainedDraft = null;
@@ -101,7 +103,7 @@ function showLogin(message, preserveDraft = false) {
     retainedDraft = preserveDraft ? { userId: tokens.userId, reopen: itemDialog.open } : null;
     tokens = null;
     page = 1;
-    filters = { search: "", availability: "" };
+    filters = defaultFilters;
     hasNext = false;
     searchForm.reset();
     itemDialog.close();
@@ -134,9 +136,12 @@ async function requestWithSession(path, session, data) {
 async function loadPage(requestedPage, requestedFilters) {
     const session = tokens;
     if (pendingRequest || !session) return;
-    const { search, availability } = requestedFilters;
-    const filterChanged = search !== filters.search || availability !== filters.availability;
-    const query = new URLSearchParams({ page: requestedPage, pageSize, search });
+    const { search, availability, order } = requestedFilters;
+    const filterChanged =
+        search !== filters.search ||
+        availability !== filters.availability ||
+        order !== filters.order;
+    const query = new URLSearchParams({ page: requestedPage, pageSize, search, order });
     if (availability) query.set("availability", availability);
     pendingRequest = requestWithSession(`/item?${query}`, session);
     updateControls();
@@ -228,7 +233,11 @@ loginForm.addEventListener("submit", async (event) => {
 
 searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    void loadPage(1, { search: searchField.value.trim(), availability: availabilityField.value });
+    void loadPage(1, {
+        search: searchField.value.trim(),
+        availability: availabilityField.value,
+        order: orderField.value,
+    });
 });
 previous.addEventListener("click", () => void loadPage(page - 1, filters));
 next.addEventListener("click", () => void loadPage(page + 1, filters));
@@ -250,7 +259,7 @@ itemDialog.addEventListener("cancel", (event) => {
     if (pendingRequest) event.preventDefault();
 });
 itemDialog.addEventListener("close", () => {
-    if (itemNeedsReview) void loadPage(page, filters);
+    if (itemNeedsReview) void loadPage(filters.order === "desc" ? 1 : page, filters);
 });
 
 itemForm.addEventListener("submit", async (event) => {
@@ -300,7 +309,7 @@ itemForm.addEventListener("submit", async (event) => {
         pendingRequest = null;
         updateControls();
     }
-    void loadPage(page, filters);
+    void loadPage(filters.order === "desc" ? 1 : page, filters);
 });
 
 logout.addEventListener("click", async () => {

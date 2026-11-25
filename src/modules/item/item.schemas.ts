@@ -69,6 +69,7 @@ export const itemListQuerySchema = z
         availability: z
             .enum(["available", "unavailable"], { error: "Disponibilidade inválida." })
             .optional(),
+        order: z.enum(["asc", "desc"], { error: "Ordem inválida." }).default("asc"),
     })
     .strict();
 
