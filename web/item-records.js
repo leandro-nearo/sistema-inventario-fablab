@@ -72,7 +72,7 @@ function renderAdjustment(adjustment) {
     return entry;
 }
 
-function renderLoan(loan, confirmReturn, openRenewal) {
+function renderLoan(loan, confirmLoanChange, openRenewal) {
     const entry = document.createElement("li");
     const identifier = document.createElement("strong");
     const loanLabel = `Empréstimo #${loan.id}`;
@@ -93,40 +93,57 @@ function renderLoan(loan, confirmReturn, openRenewal) {
     returnButton.className = "secondary";
     returnButton.textContent = "Registrar devolução";
     returnButton.setAttribute("aria-label", `Registrar devolução do empréstimo #${loan.id}`);
-    returnButton.addEventListener("click", () => void confirmReturn(loan));
+    returnButton.addEventListener("click", () => void confirmLoanChange(loan, "return"));
     const renewButton = document.createElement("button");
     renewButton.type = "button";
     renewButton.className = "secondary";
     renewButton.textContent = "Prorrogar prazo";
     renewButton.setAttribute("aria-label", `Prorrogar prazo do empréstimo #${loan.id}`);
     renewButton.addEventListener("click", () => openRenewal(loan, renewButton));
+    const cancelButton = document.createElement("button");
+    cancelButton.type = "button";
+    cancelButton.className = "secondary";
+    cancelButton.hidden = true;
+    cancelButton.dataset.cancelLoan = "";
+    cancelButton.textContent = "Cancelar empréstimo";
+    cancelButton.setAttribute("aria-label", `Cancelar empréstimo #${loan.id}`);
+    cancelButton.addEventListener("click", () => void confirmLoanChange(loan, "cancel"));
     const actions = document.createElement("div");
     actions.className = "dialog-actions";
-    actions.append(renewButton, returnButton);
+    actions.append(renewButton, returnButton, cancelButton);
     entry.append(actions);
     return entry;
 }
 
-export function createItemRecords(dialog, fetchRecords, { returnLoan, renewLoan, fallbackFocus }) {
+export function createItemRecords(
+    dialog,
+    fetchRecords,
+    { returnLoan, renewLoan, cancelLoan, fallbackFocus },
+) {
     let active = null;
     let page = 1;
     let hasNext = false;
     let loading = null;
-    let returning = false;
+    let savingLoan = false;
+    let cancellationAllowed = false;
 
     function updateControls() {
         const focused = document.activeElement;
-        const busy = loading !== null || returning;
+        const busy = loading !== null || savingLoan;
         previous.disabled = page === 1;
         next.disabled = !hasNext;
         for (const button of [previous, next, ...entries.querySelectorAll("button")]) {
             button.setAttribute("aria-disabled", String(busy || button.disabled));
+            if (button.hasAttribute("data-cancel-loan")) button.hidden = !cancellationAllowed;
         }
-        closeButton.setAttribute("aria-disabled", String(returning));
-        loanStatusField.disabled = returning;
+        closeButton.setAttribute("aria-disabled", String(savingLoan));
+        loanStatusField.disabled = savingLoan;
         region.setAttribute("aria-busy", String(busy));
         pageLabel.textContent = `Página ${page}`;
         if ((focused === previous || focused === next) && focused.disabled) pageLabel.focus();
+        if (dialog.open && focused?.hasAttribute("data-cancel-loan") && focused.hidden) {
+            closeButton.focus();
+        }
     }
 
     function clearEntries() {
@@ -143,7 +160,7 @@ export function createItemRecords(dialog, fetchRecords, { returnLoan, renewLoan,
     }
 
     async function loadPage(requestedPage) {
-        if (!active || loading || returning) return;
+        if (!active || loading || savingLoan) return;
         const { item, kind } = active;
         const view = views[kind];
         let loanStatus = null;
@@ -169,7 +186,7 @@ export function createItemRecords(dialog, fetchRecords, { returnLoan, renewLoan,
             hasNext = records.length === pageSize;
             const focusedEntry = entries.contains(document.activeElement);
             entries.replaceChildren(
-                ...records.map((record) => view.render(record, confirmReturn, openRenewal)),
+                ...records.map((record) => view.render(record, confirmLoanChange, openRenewal)),
             );
             region.hidden = records.length === 0;
             region.scrollTop = 0;
@@ -193,41 +210,52 @@ export function createItemRecords(dialog, fetchRecords, { returnLoan, renewLoan,
     }
 
     function openRenewal(loan, opener) {
-        if (active?.kind === "loans" && dialog.open && !loading && !returning) {
+        if (active?.kind === "loans" && dialog.open && !loading && !savingLoan) {
             renewLoan(loan, opener);
         }
     }
 
-    function refresh(message = "") {
+    function refresh(message = "", requestedPage = 1) {
         if (!active || !dialog.open) return;
         result.textContent = message;
         clearEntries();
-        void loadPage(1);
+        void loadPage(requestedPage);
     }
 
-    async function confirmReturn(loan) {
+    async function confirmLoanChange(loan, action) {
         const current = active;
-        if (current?.kind !== "loans" || !dialog.open || loading || returning) return;
+        if (current?.kind !== "loans" || !dialog.open || loading || savingLoan) return;
+        const cancelling = action === "cancel";
+        if (cancelling && !cancellationAllowed) return;
         const quantity = `${loan.loanQuantity} ${loan.loanQuantity === 1 ? "unidade" : "unidades"}`;
-        if (!window.confirm(`Registrar a devolução de ${quantity} do empréstimo #${loan.id}?`)) {
-            return;
-        }
-        returning = true;
+        const prompt = cancelling
+            ? `Cancelar o empréstimo #${loan.id} e devolver ${quantity} ao estoque?`
+            : `Registrar a devolução de ${quantity} do empréstimo #${loan.id}?`;
+        if (!window.confirm(prompt)) return;
+        savingLoan = true;
         updateControls();
-        result.textContent = "Registrando devolução…";
+        result.textContent = cancelling ? "Cancelando empréstimo…" : "Registrando devolução…";
         let message;
+        let refreshPage = 1;
         try {
-            await returnLoan(loan.id);
-            message = `Devolução do empréstimo #${loan.id} registrada.`;
+            if (cancelling) {
+                await cancelLoan(loan);
+                message = `Empréstimo #${loan.id} cancelado.`;
+            } else {
+                await returnLoan(loan.id);
+                message = `Devolução do empréstimo #${loan.id} registrada.`;
+            }
         } catch (error) {
+            if (cancelling && error.status === 409) refreshPage = page;
+            const operation = cancelling ? "o cancelamento" : "a devolução";
             message =
                 error.status >= 400 && error.status < 500
                     ? error.message
-                    : "Não foi possível confirmar a devolução. Consulte a lista antes de repetir.";
+                    : `Não foi possível confirmar ${operation}. Consulte a lista antes de repetir.`;
         }
-        returning = false;
+        savingLoan = false;
         if (current !== active || !dialog.open) return;
-        refresh(message);
+        refresh(message, refreshPage);
     }
 
     function clearRecords() {
@@ -244,7 +272,7 @@ export function createItemRecords(dialog, fetchRecords, { returnLoan, renewLoan,
     previous.addEventListener("click", () => void loadPage(page - 1));
     next.addEventListener("click", () => void loadPage(page + 1));
     loanStatusField.addEventListener("change", () => {
-        if (returning || active?.kind !== "loans" || !active.item || !dialog.open) return;
+        if (savingLoan || active?.kind !== "loans" || !active.item || !dialog.open) return;
         loading?.abort();
         loading = null;
         clearEntries();
@@ -252,20 +280,25 @@ export function createItemRecords(dialog, fetchRecords, { returnLoan, renewLoan,
         result.textContent = "";
         void loadPage(1);
     });
-    closeButton.form.addEventListener("submit", preventCloseWhileReturning);
-    dialog.addEventListener("cancel", preventCloseWhileReturning);
+    closeButton.form.addEventListener("submit", preventCloseWhileSaving);
+    dialog.addEventListener("cancel", preventCloseWhileSaving);
     dialog.addEventListener("close", () => {
         if (dialog.open) return;
         if (active?.opener.hidden) fallbackFocus.focus();
         clearRecords();
     });
 
-    function preventCloseWhileReturning(event) {
-        if (returning) event.preventDefault();
+    function preventCloseWhileSaving(event) {
+        if (savingLoan) event.preventDefault();
     }
 
     return {
         refresh,
+        setCancellationAllowed(allowed) {
+            if (allowed === cancellationAllowed) return;
+            cancellationAllowed = allowed;
+            updateControls();
+        },
         open(item, kind, opener) {
             if (dialog.open) return;
             clearRecords();

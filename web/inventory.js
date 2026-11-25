@@ -48,6 +48,7 @@ const renewalDialog = document.querySelector("#loan-renewal");
 const recordsDialog = document.querySelector("#item-records");
 const itemRecords = createItemRecords(recordsDialog, fetchItemRecords, {
     returnLoan,
+    cancelLoan,
     renewLoan: (loan, opener) => loanRenewal.open(loan, opener, tokens.userId),
     fallbackFocus: cancelItem,
 });
@@ -143,6 +144,7 @@ function updateControls() {
     const saving = loading && itemDialog.open;
     itemFields.disabled = saving;
     openHistory.hidden = !editingItem || tokens?.role !== "ADMIN";
+    itemRecords.setCancellationAllowed(tokens?.role === "ADMIN");
     openLoans.hidden = !editingItem;
     openLoanRegistration.hidden = !editingItem;
     for (const button of [openHistory, openLoans, openLoanRegistration]) {
@@ -231,6 +233,12 @@ async function loadAccountRole(session) {
     updateControls();
 }
 
+function clearAdminAccess(session) {
+    session.role = "OPERATOR";
+    session.roleRequest = null;
+    updateControls();
+}
+
 async function fetchItemRecords(kind, id, { page, pageSize, loanStatus, signal }) {
     const session = tokens;
     const adjustments = kind === "adjustments";
@@ -252,11 +260,7 @@ async function fetchItemRecords(kind, id, { page, pageSize, loanStatus, signal }
     } catch (error) {
         if (session === tokens && !signal.aborted && recordsDialog.open) {
             if (error.status === 401) showLogin("Sua sessão expirou. Entre novamente.", true);
-            if (adjustments && error.status === 403) {
-                session.role = "OPERATOR";
-                session.roleRequest = null;
-                updateControls();
-            }
+            if (adjustments && error.status === 403) clearAdminAccess(session);
         }
         throw error;
     }
@@ -277,6 +281,17 @@ async function requestInDialog(dialog, path, options) {
 
 function returnLoan(id) {
     return writeLoan(`/loan/${id}/return`, { method: "POST" }, "unavailable");
+}
+
+async function cancelLoan(loan) {
+    const session = tokens;
+    const query = new URLSearchParams({ expectedUpdatedAt: loan.updatedAt });
+    try {
+        await writeLoan(`/loan/${loan.id}?${query}`, { method: "DELETE" }, "unavailable");
+    } catch (error) {
+        if (error.status === 403 && session === tokens) clearAdminAccess(session);
+        throw error;
+    }
 }
 
 async function registerLoan(data, idempotencyKey) {
