@@ -1,3 +1,4 @@
+import { clientSearchPageSize, clientSearchPath } from "./client-search.js";
 import { parseLocalDateTime } from "./local-date-time.js";
 
 const dialog = document.querySelector("#loan-dialog");
@@ -23,7 +24,6 @@ const discard = document.querySelector("#discard-loan-attempt");
 const closeButton = document.querySelector("#close-loan-dialog");
 const save = document.querySelector("#save-loan");
 
-const pageSize = 20;
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 const attempts = new Map();
 const unknownResult = "Não foi possível confirmar o cadastro. Reenvie a mesma tentativa.";
@@ -132,24 +132,18 @@ export function createLoanRegistration(request, register) {
         event.preventDefault();
         const context = active;
         if (!context || !dialog.open || searchButton.disabled || context.attempt) return;
-        const search = searchField.value.trim();
-        if (!search) {
-            searchStatus.textContent = "Informe o nome ou e-mail do cliente.";
-            return;
-        }
         searching = true;
         clearClients();
         updateControls();
         searchStatus.textContent = "Buscando clientes…";
         try {
-            const query = new URLSearchParams({ search, pageSize });
-            const clients = await request(`/client?${query}`, {
+            const clients = await request(clientSearchPath(searchField.value), {
                 signal: context.controller.signal,
             });
             if (!isOpen(context)) return;
             client.append(...clients.map(clientOption));
             if (clients.length === 0) searchStatus.textContent = "Nenhum cliente encontrado.";
-            else if (clients.length === pageSize)
+            else if (clients.length === clientSearchPageSize)
                 searchStatus.textContent = "20 resultados exibidos. Refine a busca se necessário.";
             else searchStatus.textContent = "Selecione o cliente na lista.";
         } catch (error) {

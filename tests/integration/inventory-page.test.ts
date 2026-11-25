@@ -29,6 +29,10 @@ describe("inventory page", () => {
             .expect(200)
             .expect("Content-Type", /javascript/);
         await request(app)
+            .get("/inventario/client-search.js")
+            .expect(200)
+            .expect("Content-Type", /javascript/);
+        await request(app)
             .get("/inventario/item-records.js")
             .expect(200)
             .expect("Content-Type", /javascript/);
