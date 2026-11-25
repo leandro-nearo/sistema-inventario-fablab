@@ -131,6 +131,11 @@ select {
     overflow-wrap: anywhere;
 }
 
+#loan-records-filters {
+    max-width: 16rem;
+    margin-top: 0.75rem;
+}
+
 #records-region {
     max-height: 45vh;
     overflow: auto;

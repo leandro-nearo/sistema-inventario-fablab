@@ -117,6 +117,13 @@
                         </form>
                     </div>
                     <p id="records-item"></p>
+                    <div id="loan-records-filters" hidden>
+                        <label for="loan-records-status">Situação dos empréstimos</label>
+                        <select id="loan-records-status">
+                            <option value="active">Todos os ativos</option>
+                            <option value="overdue">Atrasados</option>
+                        </select>
+                    </div>
                     <p id="records-result" role="status"></p>
                     <p id="records-status" role="status"></p>
                     <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: Os registros precisam receber foco para rolar pelo teclado. -->

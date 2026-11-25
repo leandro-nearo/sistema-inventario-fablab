@@ -1,6 +1,8 @@
 const closeButton = document.querySelector("#close-item-records");
 const title = document.querySelector("#records-title");
 const name = document.querySelector("#records-item");
+const loanFilters = document.querySelector("#loan-records-filters");
+const loanStatusField = document.querySelector("#loan-records-status");
 const result = document.querySelector("#records-result");
 const status = document.querySelector("#records-status");
 const region = document.querySelector("#records-region");
@@ -94,6 +96,7 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
             button.setAttribute("aria-disabled", String(busy || button.disabled));
         }
         closeButton.setAttribute("aria-disabled", String(returning));
+        loanStatusField.disabled = returning;
         region.setAttribute("aria-busy", String(busy));
         pageLabel.textContent = `Página ${page}`;
         if ((focused === previous || focused === next) && focused.disabled) pageLabel.focus();
@@ -116,18 +119,18 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
         if (!active || loading || returning) return;
         const { item, kind } = active;
         const view = views[kind];
+        const loanStatus = kind === "loans" ? loanStatusField.value : null;
         const controller = new AbortController();
         loading = controller;
         updateControls();
         status.textContent = view.loading;
         try {
-            const records = await fetchRecords(
-                kind,
-                item.id,
-                requestedPage,
+            const records = await fetchRecords(kind, item.id, {
+                page: requestedPage,
                 pageSize,
-                controller.signal,
-            );
+                loanStatus,
+                signal: controller.signal,
+            });
             if (loading !== controller || !dialog.open) return;
             if (records.length === 0 && requestedPage > page) {
                 hasNext = false;
@@ -142,7 +145,9 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
             region.scrollTop = 0;
             if (focusedEntry) (region.hidden ? closeButton : region).focus({ preventScroll: true });
             pagination.hidden = page === 1 && !hasNext;
-            const emptyMessage = page === 1 ? view.empty : "Nenhum registro nesta página.";
+            const emptyFirstPage =
+                loanStatus === "overdue" ? "Nenhum empréstimo atrasado." : view.empty;
+            const emptyMessage = page === 1 ? emptyFirstPage : "Nenhum registro nesta página.";
             status.textContent = records.length
                 ? `${records.length} ${records.length === 1 ? view.singular : view.plural} nesta página.`
                 : emptyMessage;
@@ -189,6 +194,7 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
         loading?.abort();
         loading = null;
         active = null;
+        loanStatusField.value = "active";
         name.textContent = "";
         result.textContent = "";
         status.textContent = "";
@@ -197,6 +203,15 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
 
     previous.addEventListener("click", () => void loadPage(page - 1));
     next.addEventListener("click", () => void loadPage(page + 1));
+    loanStatusField.addEventListener("change", () => {
+        if (returning || active?.kind !== "loans" || !dialog.open) return;
+        loading?.abort();
+        loading = null;
+        clearEntries();
+        page = 1;
+        result.textContent = "";
+        void loadPage(1);
+    });
     closeButton.form.addEventListener("submit", preventCloseWhileReturning);
     dialog.addEventListener("cancel", preventCloseWhileReturning);
     dialog.addEventListener("close", () => {
@@ -216,6 +231,7 @@ export function createItemRecords(dialog, fetchRecords, returnLoan, fallbackFocu
             active = { item, kind, opener };
             const view = views[kind];
             title.textContent = view.title;
+            loanFilters.hidden = kind !== "loans";
             region.setAttribute("aria-label", view.region);
             pagination.setAttribute("aria-label", view.pagination);
             name.textContent = item.name;

@@ -190,13 +190,13 @@ async function loadAccountRole(session) {
     updateControls();
 }
 
-async function fetchItemRecords(kind, id, page, pageSize, signal) {
+async function fetchItemRecords(kind, id, { page, pageSize, loanStatus, signal }) {
     const session = tokens;
     const adjustments = kind === "adjustments";
     if (!session || (adjustments && session.role !== "ADMIN")) throw new Error("Acesso negado.");
     const query = new URLSearchParams({ page, pageSize });
     if (!adjustments) {
-        query.set("status", "active");
+        query.set("status", loanStatus);
         query.set("itemId", id);
         query.set("include", "client");
     }
