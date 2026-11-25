@@ -18,6 +18,7 @@ databaseSuite("inventory API integration", () => {
 
     beforeEach(async () => {
         await prisma.authToken.deleteMany();
+        await prisma.loanReopening.deleteMany();
         await prisma.loan.deleteMany();
         await prisma.inventoryAdjustment.deleteMany();
         await prisma.client.deleteMany();
@@ -478,6 +479,9 @@ databaseSuite("inventory API integration", () => {
         });
 
         const { accessToken } = TokenService.generate({ userId: String(admin.id) });
+        const historyPath = `/loan/${loan.id}/reopenings`;
+        const reopeningHistory = () =>
+            request(app).get(historyPath).set("Authorization", `Bearer ${accessToken}`);
         const reopen = (expectedUpdatedAt: string) =>
             request(app)
                 .patch(`/loan/${loan.id}`)
@@ -487,11 +491,22 @@ databaseSuite("inventory API integration", () => {
         const staleReopen = await reopen(loan.updatedAt.toISOString()).expect(409);
         expect(staleReopen.body.error.code).toBe("LOAN_CHANGED");
         await reopen("invalid").expect(400);
+        await reopeningHistory().expect(200, []);
         await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
             availableQuantity: 3,
         });
         const reopened = await reopen(first.body.updatedAt).expect(200);
         await reopen(first.body.updatedAt).expect(409);
+        const firstHistory = await reopeningHistory().expect(200);
+        expect(firstHistory.body).toMatchObject([
+            {
+                loanId: loan.id,
+                actorId: admin.id,
+                previousReturnedAt: first.body.returnDate,
+                previousReturnedById: first.body.returnedById,
+                createdAt: reopened.body.updatedAt,
+            },
+        ]);
         const stale = await returnLoan(operator.id).expect(409);
         expect(stale.body.error.code).toBe("LOAN_CHANGED");
         await returnLoan(operator.id, "invalid").expect(400);
@@ -508,6 +523,37 @@ databaseSuite("inventory API integration", () => {
         await expect(prisma.item.findUnique({ where: { id: item.id } })).resolves.toMatchObject({
             availableQuantity: 3,
         });
+
+        await reopen(confirmed.body.updatedAt).expect(200);
+        const operatorToken = TokenService.generate({ userId: String(operator.id) }).accessToken;
+        await request(app)
+            .get(historyPath)
+            .set("Authorization", `Bearer ${operatorToken}`)
+            .expect(403);
+        const latest = await reopeningHistory()
+            .query({ pageSize: 1 })
+            .expect("X-Has-Next-Page", "true")
+            .expect(200);
+        expect(latest.body).toMatchObject([
+            {
+                actorId: admin.id,
+                previousReturnedAt: confirmed.body.returnDate,
+                previousReturnedById: operator.id,
+            },
+        ]);
+        await reopeningHistory()
+            .query({ page: 2, pageSize: 1 })
+            .expect("X-Has-Next-Page", "false")
+            .expect(200, firstHistory.body);
+        await prisma.user.delete({ where: { id: operator.id } });
+        expect((await reopeningHistory().query({ pageSize: 1 }).expect(200)).body).toMatchObject([
+            {
+                id: latest.body[0].id,
+                actorId: admin.id,
+                previousReturnedAt: confirmed.body.returnDate,
+                previousReturnedById: operator.id,
+            },
+        ]);
     });
 
     it("renews only the current loan deadline and keeps stock unchanged", async () => {
@@ -703,6 +749,7 @@ databaseSuite("inventory API integration", () => {
         await expect(
             prisma.loan.findUniqueOrThrow({ where: { id: returned.body.id } }),
         ).resolves.toMatchObject({ returnDate: new Date(loan.dueDate) });
+        expect(await prisma.loanReopening.count({ where: { loanId: returned.body.id } })).toBe(0);
         await expect(
             prisma.item.findUniqueOrThrow({ where: { id: item.id } }),
         ).resolves.toMatchObject({ availableQuantity: 0 });

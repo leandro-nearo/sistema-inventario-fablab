@@ -17,6 +17,7 @@ import {
     LoanVersionConflictError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
+import type { Pagination } from "@src/shared/validation/fields.js";
 import { CreateLoanValidator } from "./input-validation/create-loan.validator.js";
 import {
     type LoanCreateData,
@@ -108,6 +109,11 @@ export class LoanService {
         const loan = await this.loanRepository.findById(id);
         if (!loan) throw loanNotFound();
         return loan;
+    }
+
+    async listReopenings(id: number, pagination: Pagination) {
+        await this.getById(id);
+        return this.loanRepository.listReopenings(id, pagination);
     }
 
     updateById(

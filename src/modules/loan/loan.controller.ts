@@ -4,7 +4,7 @@ import { MESSAGES } from "@src/constants/messages.js";
 import { sendPage } from "@src/shared/pagination.js";
 import { DateValidator } from "@src/shared/utils/validators/date.validator.js";
 import { IdValidator } from "@src/shared/utils/validators/id.validator.js";
-import { isoDateSchema } from "@src/shared/validation/fields.js";
+import { isoDateSchema, paginationQuerySchema } from "@src/shared/validation/fields.js";
 import type { Request, Response } from "express";
 import { loanCreationKeySchema, loanListQuerySchema } from "./loan.schemas.js";
 
@@ -41,6 +41,13 @@ class LoanController {
         IdValidator.validate(id);
         const loan = await loanService.getById(id);
         return res.json(loan);
+    }
+
+    async listReopenings(req: Request, res: Response) {
+        const id = Number(req.params.id);
+        IdValidator.validate(id);
+        const query = paginationQuerySchema.parse(req.query);
+        return sendPage(res, query, (pagination) => loanService.listReopenings(id, pagination));
     }
 
     async returnById(req: Request, res: Response) {

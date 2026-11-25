@@ -1,4 +1,4 @@
-import type { Loan, Prisma } from "@src/generated/prisma/client.js";
+import type { Loan, LoanReopening, Prisma } from "@src/generated/prisma/client.js";
 import { prisma } from "@src/lib/prisma.js";
 import { InsufficientStockError } from "@src/shared/errors/insufficient-stock.error.js";
 import {
@@ -9,6 +9,7 @@ import {
     LoanVersionConflictError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
+import type { Pagination } from "@src/shared/validation/fields.js";
 import type { LoanCreationResult, LoanListEntryDTO, LoanListOptions } from "../loan.dtos.js";
 
 const upcomingWindowMs = 7 * 24 * 60 * 60 * 1000;
@@ -41,6 +42,7 @@ export interface LoanRepository {
     ): Promise<LoanCreationResult>;
     list(options: LoanListOptions): Promise<LoanListEntryDTO[]>;
     findById(id: number): Promise<Loan | null>;
+    listReopenings(loanId: number, pagination: Pagination): Promise<LoanReopening[]>;
     updateWithStock(
         id: number,
         data: LoanUpdateData,
@@ -182,6 +184,15 @@ export class PrismaLoanRepository implements LoanRepository {
         return prisma.loan.findUnique({ where: { id } });
     }
 
+    listReopenings(loanId: number, { skip, take }: Pagination) {
+        return prisma.loanReopening.findMany({
+            where: { loanId },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            skip,
+            take,
+        });
+    }
+
     updateWithStock(
         id: number,
         data: LoanUpdateData,
@@ -260,7 +271,8 @@ export class PrismaLoanRepository implements LoanRepository {
                 existing.returnDate === null &&
                 data.returnDate !== undefined &&
                 data.returnDate !== null;
-            const isBeingReopened = existing.returnDate !== null && data.returnDate === null;
+            const previousReturnedAt = existing.returnDate;
+            const isBeingReopened = previousReturnedAt !== null && data.returnDate === null;
 
             if (isBeingReturned) {
                 await tx.item.update({
@@ -273,12 +285,24 @@ export class PrismaLoanRepository implements LoanRepository {
             if (isBeingReopened) {
                 await reserveStock(tx, existing.itemId, existing.loanQuantity);
             }
+            const updatedAt = nextLoanUpdateTime(existing);
+            if (isBeingReopened) {
+                await tx.loanReopening.create({
+                    data: {
+                        loanId: id,
+                        actorId,
+                        previousReturnedAt,
+                        previousReturnedById: existing.returnedById,
+                        createdAt: updatedAt,
+                    },
+                });
+            }
 
             return tx.loan.update({
                 where: { id },
                 data: {
                     ...data,
-                    updatedAt: nextLoanUpdateTime(existing),
+                    updatedAt,
                     ...(isBeingReturned ? { returnedById: actorId } : {}),
                     ...(isBeingReopened ? { returnedById: null } : {}),
                 },

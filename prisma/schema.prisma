@@ -117,6 +117,7 @@ model Loan {
   updatedAt DateTime @updatedAt
 
   creationKey LoanCreationKey?
+  reopenings  LoanReopening[]
 
   @@index([loanDate, id])
   @@index([clientId, loanDate, id])
@@ -124,6 +125,18 @@ model Loan {
   @@index([dueDate])
   @@index([returnDate])
   @@index([cancelledAt])
+}
+
+model LoanReopening {
+  id                   Int      @id @default(autoincrement())
+  loanId               Int
+  loan                 Loan     @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  actorId              Int
+  previousReturnedAt   DateTime
+  previousReturnedById Int?
+  createdAt            DateTime @default(now())
+
+  @@index([loanId, createdAt, id])
 }
 
 model LoanCreationKey {

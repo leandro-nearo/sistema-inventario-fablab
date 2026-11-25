@@ -734,6 +734,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /loan/{id}/reopenings:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Loans]
+      summary: Lista o histórico de reaberturas (ADMIN)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Reaberturas da mais recente para a mais antiga
+          headers:
+            X-Has-Next-Page:
+              $ref: "#/components/headers/HasNextPage"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LoanReopening"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /loan/{id}/return:
     parameters:
       - $ref: "#/components/parameters/Id"
@@ -1143,6 +1174,26 @@ components:
           type: string
           format: date-time
         updatedAt:
+          type: string
+          format: date-time
+    LoanReopening:
+      type: object
+      required: [id, loanId, actorId, previousReturnedAt, previousReturnedById, createdAt]
+      properties:
+        id:
+          type: integer
+        loanId:
+          type: integer
+        actorId:
+          type: integer
+          description: ID da conta que reabriu, mesmo após a remoção da conta.
+        previousReturnedAt:
+          type: string
+          format: date-time
+        previousReturnedById:
+          type: [integer, "null"]
+          description: ID da conta da devolução anterior, quando presente no momento da reabertura.
+        createdAt:
           type: string
           format: date-time
     InventoryAdjustment:

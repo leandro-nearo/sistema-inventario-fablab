@@ -41,7 +41,7 @@ Campos de texto enviados ao banco e termos de busca com o caractere nulo `U+0000
 
 Endpoints de lista aceitam `page` (padrão 1) e `pageSize` (padrão 50, máximo 100). A resposta continua sendo um array para manter compatibilidade.
 
-`GET /item`, `GET /item/:id/adjustments` e `GET /loan` retornam o cabeçalho `X-Has-Next-Page`. O valor é `true` quando há mais registros para os filtros aplicados e `false` na última página ou em uma página vazia.
+`GET /item`, `GET /item/:id/adjustments`, `GET /loan` e `GET /loan/:id/reopenings` retornam o cabeçalho `X-Has-Next-Page`. O valor é `true` quando há mais registros para os filtros aplicados e `false` na última página ou em uma página vazia.
 
 Quando disponível, `search` busca um trecho literal sem distinguir maiúsculas de minúsculas. Os filtros de categoria e localização comparam o valor completo da mesma forma.
 
@@ -105,6 +105,7 @@ Para proteger uma edição de `name`, `category` ou `location`, envie o valor co
 | `POST` | `/loan` | `ADMIN`, `OPERATOR` | `clientId`, `itemId`, `loanDate`, `dueDate`, `loanQuantity`, `returnDate?`; cabeçalho opcional `Idempotency-Key` | `201 Loan` na criação, `200 Loan` na repetição |
 | `GET` | `/loan` | Autenticado | paginação, `status?`, `itemId?`, `clientId?`, `include?`, `order?` | `200 LoanListEntry[]` |
 | `GET` | `/loan/:id` | Autenticado | — | `200 Loan` |
+| `GET` | `/loan/:id/reopenings` | `ADMIN` | paginação | `200 LoanReopening[]` |
 | `POST` | `/loan/:id/return` | `ADMIN`, `OPERATOR` | `expectedUpdatedAt?` | `200 Loan` |
 | `POST` | `/loan/:id/renew` | `ADMIN`, `OPERATOR` | `expectedUpdatedAt`, `dueDate` | `200 Loan` |
 | `PATCH` | `/loan/:id` | `ADMIN`, `OPERATOR` | `loanDate?`, `dueDate?`, `returnDate?`, consulta `expectedUpdatedAt?` | `200 Loan` |
@@ -115,6 +116,8 @@ Para proteger uma edição de `name`, `category` ou `location`, envie o valor co
 Definir `returnDate` devolve o estoque; definir `returnDate: null` reabre o empréstimo se houver estoque. `DELETE` cancela e preserva o registro.
 
 Ao atualizar ou reabrir com `PATCH /loan/:id`, envie o `updatedAt` consultado no parâmetro opcional `expectedUpdatedAt`. Se a versão mudou, a API retorna `409 LOAN_CHANGED` e preserva o empréstimo e o saldo.
+
+Cada reabertura bem-sucedida registra a data anterior de devolução em `previousReturnedAt`, a conta da devolução em `previousReturnedById`, a conta que reabriu em `actorId` e o horário da reabertura em `createdAt`. O registro é gravado na mesma transação que reserva o saldo. Administradores podem consultar o histórico do empréstimo em `GET /loan/:id/reopenings`, do mais recente para o mais antigo. Os IDs gravados permanecem no histórico após a remoção de uma conta. Se a conta da devolução anterior já estiver ausente no momento da reabertura, `previousReturnedById` vale `null`. O histórico começa com as reaberturas feitas após a migração.
 
 Use `GET /loan?itemId=42&status=active` para listar empréstimos ativos do item 42. Use `GET /loan?clientId=12&status=active&include=itemLocation` para listar os empréstimos ativos do cliente 12 com nome e localização dos itens. É possível combinar os filtros de cliente, item e situação. A consulta retorna uma lista vazia quando nenhum empréstimo corresponde aos filtros.
 

@@ -20,6 +20,7 @@ import type { SeedDatabase } from "./types.js";
 async function clean(database: SeedDatabase) {
     console.log("  A limpar dados existentes...");
     await database.authToken.deleteMany();
+    await database.loanReopening.deleteMany();
     await database.loan.deleteMany();
     await database.inventoryAdjustment.deleteMany();
     await database.client.deleteMany();

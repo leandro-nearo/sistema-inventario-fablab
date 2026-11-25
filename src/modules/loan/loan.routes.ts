@@ -16,6 +16,12 @@ loanRouter.post(
 );
 loanRouter.get("/", authMiddleware, loanController.list);
 loanRouter.get("/:id", authMiddleware, loanController.getById);
+loanRouter.get(
+    "/:id/reopenings",
+    authMiddleware,
+    requireRole("ADMIN"),
+    loanController.listReopenings,
+);
 loanRouter.post(
     "/:id/return",
     authMiddleware,
