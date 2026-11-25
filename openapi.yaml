@@ -34,8 +34,12 @@ paths:
       responses:
         "200":
           description: Aplicação pronta
-        "500":
-          $ref: "#/components/responses/InternalError"
+        "503":
+          description: Banco de dados indisponível
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /auth/login:
     post:
       security: []
@@ -60,6 +64,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
         "429":
           $ref: "#/components/responses/RateLimited"
   /auth/refresh:
@@ -82,6 +88,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
         "429":
           $ref: "#/components/responses/RateLimited"
   /auth/logout:
@@ -98,6 +106,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
   /auth/logout-all:
     post:
       tags: [Auth]
@@ -107,6 +117,28 @@ paths:
       responses:
         "204":
           description: Sessões revogadas
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Retorna a conta autenticada e seu papel atual
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Identidade da sessão
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, role]
+                properties:
+                  id:
+                    type: integer
+                  role:
+                    type: string
+                    enum: [ADMIN, OPERATOR]
         "401":
           $ref: "#/components/responses/Unauthorized"
   /user:
@@ -136,6 +168,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
     get:
       tags: [Users]
       summary: Lista usuários (ADMIN)
@@ -177,6 +211,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
   /user/{id}:
     parameters:
       - $ref: "#/components/parameters/Id"
@@ -218,6 +254,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
     delete:
       tags: [Users]
       summary: Remove um usuário (ADMIN)
@@ -240,6 +278,13 @@ paths:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
         - $ref: "#/components/parameters/Search"
+        - name: email
+          in: query
+          description: Busca o e-mail completo, sem distinguir maiúsculas de minúsculas.
+          schema:
+            type: string
+            format: email
+            maxLength: 254
       responses:
         "200":
           description: Clientes
@@ -249,6 +294,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Client"
+        "400":
+          $ref: "#/components/responses/BadRequest"
     post:
       tags: [Clients]
       summary: Cria um cliente
@@ -273,6 +320,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
   /client/{id}:
     parameters:
       - $ref: "#/components/parameters/Id"
@@ -312,6 +361,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
     delete:
       tags: [Clients]
       summary: Remove um cliente sem histórico (ADMIN)
@@ -348,15 +399,33 @@ paths:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
         - $ref: "#/components/parameters/Search"
+        - name: availability
+          in: query
+          description: Use `available` para saldo disponível maior que zero ou `unavailable` para saldo disponível zero. Omita para listar todos os itens.
+          schema:
+            type: string
+            enum: [available, unavailable]
+        - name: order
+          in: query
+          description: Ordem por ID.
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
       responses:
         "200":
           description: Itens
+          headers:
+            X-Has-Next-Page:
+              $ref: "#/components/headers/HasNextPage"
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/Item"
+        "400":
+          $ref: "#/components/responses/BadRequest"
     post:
       tags: [Items]
       summary: Cria um item
@@ -379,6 +448,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
   /item/by-category:
     get:
       tags: [Items]
@@ -389,6 +460,7 @@ paths:
         - name: category
           in: query
           required: true
+          description: Categoria completa, sem distinção entre maiúsculas e minúsculas.
           schema:
             type: string
         - $ref: "#/components/parameters/Page"
@@ -406,6 +478,7 @@ paths:
         - name: location
           in: query
           required: true
+          description: Localização completa, sem distinção entre maiúsculas e minúsculas.
           schema:
             type: string
         - $ref: "#/components/parameters/Page"
@@ -452,6 +525,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
     delete:
       tags: [Items]
       summary: Remove um item sem histórico (ADMIN)
@@ -476,6 +551,9 @@ paths:
       responses:
         "200":
           description: Ajustes de inventário
+          headers:
+            X-Has-Next-Page:
+              $ref: "#/components/headers/HasNextPage"
           content:
             application/json:
               schema:
@@ -495,24 +573,64 @@ paths:
         - $ref: "#/components/parameters/PageSize"
         - name: status
           in: query
+          description: upcoming filtra empréstimos ativos cujo prazo vence entre o horário atual do servidor e as próximas 168 horas, incluindo os limites.
           schema:
             type: string
-            enum: [all, active, returned, cancelled, overdue]
+            enum: [all, active, returned, cancelled, overdue, upcoming]
             default: all
+        - name: itemId
+          in: query
+          description: Filtra empréstimos pelo ID do item.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2147483647
+        - name: clientId
+          in: query
+          description: Filtra empréstimos pelo ID do cliente. Pode ser combinado com itemId e status.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2147483647
+        - name: include
+          in: query
+          description: Inclui o nome do cliente, o nome do item ou o nome e a localização do item. Combine client com item ou itemLocation por meio de uma vírgula.
+          schema:
+            type: string
+            enum: [client, item, "client,item", "item,client", itemLocation, "client,itemLocation", "itemLocation,client"]
+        - name: order
+          in: query
+          description: recent ordena da data de empréstimo mais nova à mais antiga. due ordena do vencimento mais antigo ao mais novo.
+          schema:
+            type: string
+            enum: [recent, due]
+            default: recent
       responses:
         "200":
           description: Empréstimos
+          headers:
+            X-Has-Next-Page:
+              $ref: "#/components/headers/HasNextPage"
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Loan"
+                  $ref: "#/components/schemas/LoanListEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
     post:
       tags: [Loans]
       summary: Cria um empréstimo e reserva estoque
       security:
         - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: UUID por cadastro. Repetir a chave e os mesmos dados com a mesma conta retorna o empréstimo já criado.
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -520,6 +638,12 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateLoanInput"
       responses:
+        "200":
+          description: Empréstimo já criado por esta conta com a mesma chave e os mesmos dados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
         "201":
           description: Empréstimo criado
           content:
@@ -530,8 +654,16 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: Chave já usada por esta conta com outros dados válidos (IDEMPOTENCY_KEY_CONFLICT)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
   /loan/{id}:
     parameters:
       - $ref: "#/components/parameters/Id"
@@ -552,8 +684,11 @@ paths:
     patch:
       tags: [Loans]
       summary: Atualiza datas, devolve ou reabre um empréstimo
+      description: Se expectedUpdatedAt for informado e o empréstimo estiver em outra versão, retorna LOAN_CHANGED.
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ExpectedLoanUpdatedAt"
       requestBody:
         required: true
         content:
@@ -567,27 +702,166 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Loan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
     delete:
       tags: [Loans]
       summary: Cancela sem apagar o histórico (ADMIN)
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ExpectedLoanUpdatedAt"
       responses:
         "204":
           description: Empréstimo cancelado
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: A versão do empréstimo mudou desde a consulta (LOAN_CHANGED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /loan/{id}/reopenings:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Loans]
+      summary: Lista o histórico de reaberturas (ADMIN)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Reaberturas da mais recente para a mais antiga
+          headers:
+            X-Has-Next-Page:
+              $ref: "#/components/headers/HasNextPage"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LoanReopening"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /loan/{id}/return:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Loans]
+      summary: Registra a devolução de um empréstimo
+      description: |
+        Usa a data e hora do servidor. Uma nova chamada para um empréstimo já devolvido preserva a data e a conta responsável.
+        Uma data de empréstimo futura impede a devolução e retorna INVALID_LOAN_DATES.
+        Se expectedUpdatedAt for informado e o empréstimo ativo estiver em outra versão, retorna LOAN_CHANGED.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ExpectedLoanUpdatedAt"
+      responses:
+        "200":
+          description: Empréstimo devolvido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /loan/{id}/renew:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Loans]
+      summary: Prorroga o prazo de um empréstimo ativo
+      description: |
+        Envie o updatedAt da última consulta e um novo prazo futuro e posterior ao atual.
+        Uma versão mais recente de um empréstimo ativo só retorna 200 quando já tem o prazo solicitado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedUpdatedAt, dueDate]
+              additionalProperties: false
+              properties:
+                expectedUpdatedAt:
+                  type: string
+                  description: Valor de updatedAt obtido na consulta do empréstimo.
+                dueDate:
+                  type: string
+                  description: Novo prazo em YYYY-MM-DD ou com data e hora ISO, segundos e fuso.
+      responses:
+        "200":
+          description: Empréstimo com o novo prazo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Registro alterado por outra operação ou empréstimo já devolvido ou cancelado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
 components:
+  headers:
+    HasNextPage:
+      description: Indica se há outra página de registros para os filtros aplicados.
+      schema:
+        type: boolean
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    ExpectedLoanUpdatedAt:
+      name: expectedUpdatedAt
+      in: query
+      description: Valor de updatedAt obtido na consulta do empréstimo.
+      schema:
+        type: string
+        format: date-time
     Id:
       name: id
       in: path
@@ -614,6 +888,7 @@ components:
     Search:
       name: search
       in: query
+      description: Busca por trecho literal, sem distinção entre maiúsculas e minúsculas.
       schema:
         type: string
         maxLength: 100
@@ -666,14 +941,14 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
-    RateLimited:
-      description: Limite de requisições excedido
+    UnsupportedMediaType:
+      description: Codificação do corpo JSON não suportada
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
-    InternalError:
-      description: Erro inesperado
+    RateLimited:
+      description: Limite de requisições excedido
       content:
         application/json:
           schema:
@@ -856,6 +1131,23 @@ components:
           type: integer
           minimum: 0
           maximum: 2147483647
+        expectedTotalQuantity:
+          description: Total consultado antes do ajuste. Use com totalQuantity. A API retorna 409 com ITEM_QUANTITY_CHANGED se o total tiver mudado.
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        expectedFields:
+          description: Valores consultados dos campos que também serão atualizados. A API retorna 409 com ITEM_FIELDS_CHANGED se algum valor tiver mudado.
+          type: object
+          additionalProperties: false
+          minProperties: 1
+          properties:
+            name:
+              type: string
+            category:
+              type: [string, "null"]
+            location:
+              type: string
         adjustmentReason:
           type: string
           minLength: 3
@@ -882,6 +1174,26 @@ components:
           type: string
           format: date-time
         updatedAt:
+          type: string
+          format: date-time
+    LoanReopening:
+      type: object
+      required: [id, loanId, actorId, previousReturnedAt, previousReturnedById, createdAt]
+      properties:
+        id:
+          type: integer
+        loanId:
+          type: integer
+        actorId:
+          type: integer
+          description: ID da conta que reabriu, mesmo após a remoção da conta.
+        previousReturnedAt:
+          type: string
+          format: date-time
+        previousReturnedById:
+          type: [integer, "null"]
+          description: ID da conta da devolução anterior, quando presente no momento da reabertura.
+        createdAt:
           type: string
           format: date-time
     InventoryAdjustment:
@@ -995,3 +1307,27 @@ components:
         updatedAt:
           type: string
           format: date-time
+    LoanListEntry:
+      allOf:
+        - $ref: "#/components/schemas/Loan"
+        - type: object
+          properties:
+            client:
+              description: Presente quando a consulta inclui o cliente.
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+            item:
+              description: Presente quando a consulta inclui o item.
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                location:
+                  type: string
+                  description: Presente quando a consulta usa itemLocation.

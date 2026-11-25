@@ -38,7 +38,37 @@ npm run db:deploy
 npm run dev
 ```
 
-A API usa `http://localhost:3000` por padrão. Verifique:
+A API usa `http://localhost:3000` por padrão. Abra [o estoque](http://localhost:3000/inventario/) e entre com uma conta do FabLab para pesquisar, filtrar por disponibilidade e cadastrar itens. Ao recarregar a página, entre novamente.
+
+Selecione o nome de um item para editar seu nome, categoria ou localização. Para alterar a quantidade total, informe o motivo do ajuste.
+
+Se outra pessoa alterar o mesmo campo, a edição mostra o valor atual do estoque e mantém seu rascunho para revisão.
+
+Use **Registrar empréstimo** na edição do item. Busque pelo nome ou use o e-mail completo para localizar o cadastro exato. Selecione o cliente e informe a quantidade e o prazo de devolução no horário local. Se a tela perder a resposta da API, **Reenviar cadastro** usa a mesma tentativa nesta aba.
+
+Quando o cliente ainda não tiver cadastro, abra **Cadastrar cliente** no próprio empréstimo. Um e-mail já cadastrado aparece para conferência e seleção.
+
+Abra **Empréstimos do item** na edição para consultar as unidades emprestadas, os nomes e IDs dos clientes e os prazos de devolução.
+
+O filtro **Situação dos empréstimos** abre em **Ativos**. Use **Atrasados** para ver os prazos vencidos e **Devolvidos**, **Cancelados** ou **Todos** para consultar o histórico com as datas de devolução e cancelamento.
+
+Na tela principal do estoque, **Prazos de empréstimos** abre em **Atrasados**. Selecione **Próximos 7 dias** para ver os empréstimos que vencem nas próximas 168 horas. As duas listas ordenam os registros por prazo e mostram a localização e o ID de cada item. O filtro **Próximos 7 dias** também está disponível nas listas por item e por cliente.
+
+Use **Empréstimos por cliente** para buscar pelo nome ou localizar um cadastro pelo e-mail completo. Selecione o cliente e abra os empréstimos ativos, ou mude o filtro para consultar o histórico desse cliente.
+
+Use **Prorrogar prazo** em um empréstimo ativo e informe um novo prazo no horário local. Se outra pessoa alterar o empréstimo, confira o prazo atualizado antes de enviar novamente.
+
+Use **Registrar devolução** para devolver todas as unidades de um empréstimo. Se o empréstimo mudar antes da confirmação, confira o registro atualizado antes de tentar novamente. O estoque reflete a devolução ao voltar à lista de itens.
+
+Para corrigir uma devolução registrada por engano, abra **Devolvidos** na lista do item ou do cliente e use **Reabrir empréstimo**. A ação volta a reservar todas as unidades, se houver saldo disponível.
+
+Administradores podem abrir **Reaberturas** em um empréstimo para consultar a devolução anterior e as contas responsáveis pela devolução e pela correção.
+
+Administradores podem usar **Cancelar empréstimo** em empréstimos ativos. O cancelamento repõe todas as unidades no estoque e fica registrado no histórico.
+
+Administradores podem abrir **Histórico de ajustes** na edição do item para consultar quantidades, motivos, datas e contas responsáveis.
+
+Para verificar o servidor:
 
 ```bash
 curl http://localhost:3000/health/live
@@ -160,6 +190,12 @@ docker run --rm -p 3000:3000 --env-file .env sistema-inventario-fablab
 ```
 
 Aplique `npm run db:deploy` como etapa única de implantação antes de iniciar novas réplicas. O processo responde a `SIGTERM`/`SIGINT`, fecha o servidor e desconecta o Prisma.
+
+Em bases com um histórico de empréstimos grande, aplique a migração `20261125000000_index_loan_history` em uma janela de manutenção. A criação dos índices bloqueia escritas na tabela `Loan` até o fim da migração.
+
+A migração `20261125010000_index_active_loans_by_item` cria, de forma concorrente, um índice parcial para as consultas de empréstimos ativos e atrasados por item.
+
+As migrações `20261125030000_index_active_loans_by_deadline` e `20261125040000_remove_superseded_active_deadline_index` substituem, de forma concorrente, o índice da fila geral de atrasos por um índice de prazo e ID. O novo índice fica disponível antes da remoção do anterior.
 
 ## Testes de integração
 

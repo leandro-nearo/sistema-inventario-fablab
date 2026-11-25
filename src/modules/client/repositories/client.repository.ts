@@ -1,5 +1,7 @@
 import type { Client, Item, Loan, Prisma } from "@src/generated/prisma/client.js";
 import { prisma } from "@src/lib/prisma.js";
+import { escapeLikePattern } from "@src/shared/utils/postgres-like.js";
+import type { ClientListOptions } from "../client.dtos.js";
 
 export type ClientLoanHistory = Client & {
     loans: Array<Loan & { item: Item }>;
@@ -7,7 +9,7 @@ export type ClientLoanHistory = Client & {
 
 export interface ClientRepository {
     create(data: Prisma.ClientCreateInput): Promise<Client>;
-    list(options: { skip: number; take: number; search?: string }): Promise<Client[]>;
+    list(options: ClientListOptions): Promise<Client[]>;
     findById(id: number): Promise<Client | null>;
     update(id: number, data: Prisma.ClientUpdateInput): Promise<Client>;
     getLoanHistory(
@@ -22,18 +24,19 @@ export class PrismaClientRepository implements ClientRepository {
         return prisma.client.create({ data });
     }
 
-    list({ skip, take, search }: { skip: number; take: number; search?: string }) {
+    list({ skip, take, search, email }: ClientListOptions) {
+        const pattern = search && escapeLikePattern(search);
+        const where: Prisma.ClientWhereInput = {};
+        if (pattern) {
+            where.OR = [
+                { name: { contains: pattern, mode: "insensitive" } },
+                { email: { contains: pattern, mode: "insensitive" } },
+            ];
+        }
+        if (email) where.email = { equals: escapeLikePattern(email), mode: "insensitive" };
+
         return prisma.client.findMany({
-            ...(search
-                ? {
-                      where: {
-                          OR: [
-                              { name: { contains: search, mode: "insensitive" } },
-                              { email: { contains: search, mode: "insensitive" } },
-                          ],
-                      },
-                  }
-                : {}),
+            where,
             orderBy: { id: "asc" },
             skip,
             take,

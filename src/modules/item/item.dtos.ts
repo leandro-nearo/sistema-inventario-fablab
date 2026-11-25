@@ -1,3 +1,5 @@
+import type { Pagination } from "@src/shared/validation/fields.js";
+
 export type ItemDTO = {
     id: number;
     name: string;
@@ -16,12 +18,22 @@ export type CreateItemDTO = {
     location: string;
 };
 
+export const itemMetadataFields = ["name", "category", "location"] as const;
+
 export type UpdateItemDTO = {
     name?: string;
     category?: string | null;
     totalQuantity?: number;
+    expectedTotalQuantity?: number;
+    expectedFields?: Partial<Pick<ItemDTO, (typeof itemMetadataFields)[number]>>;
     location?: string;
     adjustmentReason?: string;
+};
+
+export type ItemListOptions = Pagination & {
+    search?: string;
+    availability?: "available" | "unavailable";
+    order?: "asc" | "desc";
 };
 
 export type ListByCategoryDTO = {

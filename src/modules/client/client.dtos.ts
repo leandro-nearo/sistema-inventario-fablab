@@ -1,3 +1,5 @@
+import type { Pagination } from "@src/shared/validation/fields.js";
+
 export type ClientDTO = {
     id: number;
     name: string;
@@ -6,6 +8,8 @@ export type ClientDTO = {
     createdAt: Date;
     updatedAt: Date;
 };
+
+export type ClientListOptions = Pagination & { search?: string; email?: string };
 
 export type CreateClientDTO = {
     name: string;

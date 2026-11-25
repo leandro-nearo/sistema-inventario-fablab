@@ -5,6 +5,7 @@ import type {
     UpdateItemDTO,
 } from "@modules/item/item.dtos.js";
 import { itemService } from "@modules/item/item.service.js";
+import { sendPage } from "@src/shared/pagination.js";
 import { IdValidator } from "@src/shared/utils/validators/id.validator.js";
 import { paginationFrom, paginationQuerySchema } from "@src/shared/validation/fields.js";
 import type { Request, Response } from "express";
@@ -20,11 +21,14 @@ class ItemController {
 
     async list(req: Request, res: Response) {
         const query = itemListQuerySchema.parse(req.query);
-        const items = await itemService.list({
-            ...paginationFrom(query),
-            ...(query.search ? { search: query.search } : {}),
-        });
-        return res.status(200).json(items);
+        return sendPage(res, query, (pagination) =>
+            itemService.list({
+                ...pagination,
+                order: query.order,
+                ...(query.search ? { search: query.search } : {}),
+                ...(query.availability ? { availability: query.availability } : {}),
+            }),
+        );
     }
 
     async getById(req: Request, res: Response) {
@@ -63,8 +67,9 @@ class ItemController {
         const itemId = Number(req.params.id);
         IdValidator.validate(itemId);
         const query = paginationQuerySchema.parse(req.query);
-        const adjustments = await itemService.listAdjustments(itemId, paginationFrom(query));
-        return res.status(200).json(adjustments);
+        return sendPage(res, query, (pagination) =>
+            itemService.listAdjustments(itemId, pagination),
+        );
     }
 
     async deleteById(req: Request, res: Response) {

@@ -14,8 +14,8 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
-        "lint": "biome check src seed tests vitest.config.ts",
-        "format": "biome format --write src seed tests vitest.config.ts",
+        "lint": "biome check src seed tests web vitest.config.ts",
+        "format": "biome format --write src seed tests web vitest.config.ts",
         "docs:lint": "redocly lint openapi.yaml",
         "check": "npm run lint && npm run docs:lint && npm run typecheck && npm run test && npm run build",
         "db:migrate": "prisma migrate dev",
@@ -61,18 +61,21 @@
         "@types/node": "^25.5.2",
         "@types/pg": "^8.20.0",
         "@types/supertest": "^7.2.1",
-        "@vitest/coverage-v8": "^5.0.0",
+        "@vitest/coverage-v8": "^5.0.5",
         "prisma": "^7.10.0",
         "supertest": "^7.2.2",
         "tsc-alias": "^1.9.4",
         "tsx": "^4.21.0",
         "typescript": "^6.0.2",
-        "vitest": "^5.0.0"
+        "vitest": "^5.0.5"
     },
     "engines": {
         "node": "^20.19 || ^22.12 || >=24.0"
     },
     "overrides": {
+        "@prisma/config": {
+            "effect": "^3.22.1"
+        },
         "deepmerge-ts": "^8.0.2",
         "mysql2": "^3.24.3"
     }

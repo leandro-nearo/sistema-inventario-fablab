@@ -1,3 +1,5 @@
+import type { Pagination } from "@src/shared/validation/fields.js";
+
 export type LoanDTO = {
     id: number;
     clientId: number;
@@ -14,6 +16,32 @@ export type LoanDTO = {
     updatedAt: Date;
 };
 
+export type LoanListEntryDTO = LoanDTO & {
+    client?: { name: string };
+    item?: { name: string; location?: string };
+};
+
+export type LoanCreationResult = { loan: LoanDTO; created: boolean };
+
+export const loanStatuses = [
+    "all",
+    "active",
+    "returned",
+    "cancelled",
+    "overdue",
+    "upcoming",
+] as const;
+
+export type LoanListOptions = Pagination & {
+    status: (typeof loanStatuses)[number];
+    itemId?: number;
+    clientId?: number;
+    includeClient?: boolean;
+    includeItem?: boolean;
+    includeItemLocation?: boolean;
+    order?: "recent" | "due";
+};
+
 export type CreateLoanDTO = {
     clientId: number;
     itemId: number;
@@ -28,3 +56,5 @@ export type UpdateLoanDTO = {
     dueDate?: string;
     returnDate?: string | null;
 };
+
+export type RenewLoanDTO = { expectedUpdatedAt: string; dueDate: string };

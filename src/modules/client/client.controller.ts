@@ -17,6 +17,7 @@ class ClientController {
         const clients = await clientService.list({
             ...paginationFrom(query),
             ...(query.search ? { search: query.search } : {}),
+            ...(query.email ? { email: query.email } : {}),
         });
         return res.status(200).json(clients);
     }

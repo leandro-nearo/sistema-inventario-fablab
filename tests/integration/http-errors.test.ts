@@ -22,4 +22,21 @@ describe("JSON request errors", () => {
                 },
             });
     });
+
+    it.each([
+        ["Content-Type", "application/json; charset=iso-8859-1"],
+        ["Content-Encoding", "compress"],
+    ])("returns HTTP 415 for an unsupported %s value", async (header, value) => {
+        await request(app)
+            .post("/auth/login")
+            .set("Content-Type", "application/json")
+            .set(header, value)
+            .send("{}")
+            .expect(415, {
+                error: {
+                    code: "UNSUPPORTED_MEDIA_TYPE",
+                    message: "Codificação do corpo da requisição não suportada.",
+                },
+            });
+    });
 });

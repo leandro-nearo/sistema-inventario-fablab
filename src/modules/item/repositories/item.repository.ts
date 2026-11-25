@@ -2,26 +2,22 @@ import type { InventoryAdjustment, Item, Prisma } from "@src/generated/prisma/cl
 import { prisma } from "@src/lib/prisma.js";
 import {
     InventoryCapacityError,
+    InventoryFieldsChangedError,
     InventoryInvariantError,
+    InventoryQuantityChangedError,
 } from "@src/shared/errors/inventory-capacity.error.js";
-
-export type ItemUpdateData = {
-    name?: string;
-    category?: string | null;
-    totalQuantity?: number;
-    location?: string;
-    adjustmentReason?: string;
-};
+import { escapeLikePattern } from "@src/shared/utils/postgres-like.js";
+import { type ItemListOptions, itemMetadataFields, type UpdateItemDTO } from "../item.dtos.js";
 
 export interface ItemRepository {
     create(data: Prisma.ItemCreateInput): Promise<Item>;
-    list(options: { skip: number; take: number; search?: string }): Promise<Item[]>;
+    list(options: ItemListOptions): Promise<Item[]>;
     findById(id: number): Promise<Item | null>;
     listByCategory(category: string, pagination: { skip: number; take: number }): Promise<Item[]>;
     listByLocation(location: string, pagination: { skip: number; take: number }): Promise<Item[]>;
     updateWithStockInvariant(
         id: number,
-        data: ItemUpdateData,
+        data: UpdateItemDTO,
         actorId: number,
     ): Promise<Item | null>;
     listAdjustments(
@@ -36,20 +32,23 @@ export class PrismaItemRepository implements ItemRepository {
         return prisma.item.create({ data });
     }
 
-    list({ skip, take, search }: { skip: number; take: number; search?: string }) {
+    list({ skip, take, search, availability, order = "asc" }: ItemListOptions) {
+        const where: Prisma.ItemWhereInput = {};
+        const pattern = search && escapeLikePattern(search);
+        if (pattern) {
+            where.OR = [
+                { name: { contains: pattern, mode: "insensitive" } },
+                { category: { contains: pattern, mode: "insensitive" } },
+                { location: { contains: pattern, mode: "insensitive" } },
+            ];
+        }
+        if (availability) {
+            where.availableQuantity = availability === "available" ? { gt: 0 } : 0;
+        }
+
         return prisma.item.findMany({
-            ...(search
-                ? {
-                      where: {
-                          OR: [
-                              { name: { contains: search, mode: "insensitive" } },
-                              { category: { contains: search, mode: "insensitive" } },
-                              { location: { contains: search, mode: "insensitive" } },
-                          ],
-                      },
-                  }
-                : {}),
-            orderBy: { id: "asc" },
+            where,
+            orderBy: { id: order },
             skip,
             take,
         });
@@ -61,7 +60,7 @@ export class PrismaItemRepository implements ItemRepository {
 
     listByCategory(category: string, { skip, take }: { skip: number; take: number }) {
         return prisma.item.findMany({
-            where: { category: { equals: category, mode: "insensitive" } },
+            where: { category: { equals: escapeLikePattern(category), mode: "insensitive" } },
             orderBy: { id: "asc" },
             skip,
             take,
@@ -70,7 +69,7 @@ export class PrismaItemRepository implements ItemRepository {
 
     listByLocation(location: string, { skip, take }: { skip: number; take: number }) {
         return prisma.item.findMany({
-            where: { location: { equals: location, mode: "insensitive" } },
+            where: { location: { equals: escapeLikePattern(location), mode: "insensitive" } },
             orderBy: { id: "asc" },
             skip,
             take,
@@ -79,7 +78,7 @@ export class PrismaItemRepository implements ItemRepository {
 
     updateWithStockInvariant(
         id: number,
-        data: ItemUpdateData,
+        data: UpdateItemDTO,
         actorId: number,
     ): Promise<Item | null> {
         return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -94,6 +93,23 @@ export class PrismaItemRepository implements ItemRepository {
                 existing.totalQuantity < existing.availableQuantity
             ) {
                 throw new InventoryInvariantError();
+            }
+
+            if (
+                data.expectedTotalQuantity !== undefined &&
+                data.expectedTotalQuantity !== existing.totalQuantity
+            ) {
+                throw new InventoryQuantityChangedError();
+            }
+
+            const expected = data.expectedFields;
+            if (
+                expected &&
+                itemMetadataFields.some(
+                    (field) => expected[field] !== undefined && expected[field] !== existing[field],
+                )
+            ) {
+                throw new InventoryFieldsChangedError();
             }
 
             const borrowedQuantity = existing.totalQuantity - existing.availableQuantity;

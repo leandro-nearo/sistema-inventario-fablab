@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Inventário FabLab</title>
+        <link rel="stylesheet" href="inventory.css" />
+        <script type="module" src="inventory.js"></script>
+    </head>
+    <body>
+        <header class="bar">
+            <div class="bar-content">
+                <span class="brand">Inventário FabLab</span>
+                <button id="logout" class="secondary" type="button" hidden>Sair</button>
+            </div>
+        </header>
+        <main>
+            <section id="login" class="panel login" aria-labelledby="login-title">
+                <h1 id="login-title">Entre na sua conta</h1>
+                <form id="login-form" method="post">
+                    <label for="email">E-mail</label>
+                    <input id="email" name="email" type="email" autocomplete="username" maxlength="254" required />
+                    <label for="password">Senha</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" required />
+                    <button id="login-button" type="submit">Entrar</button>
+                </form>
+                <p id="login-status" role="status"></p>
+            </section>
+            <section id="inventory" aria-labelledby="inventory-title" hidden>
+                <div class="inventory-heading">
+                    <h1 id="inventory-title" tabindex="-1">Estoque de itens</h1>
+                    <div class="dialog-actions">
+                        <button id="open-loan-deadlines" class="secondary" type="button" aria-haspopup="dialog">Prazos de empréstimos</button>
+                        <button id="open-client-loans" class="secondary" type="button" aria-haspopup="dialog">Empréstimos por cliente</button>
+                        <button id="create-item" type="button" aria-haspopup="dialog">Cadastrar item</button>
+                    </div>
+                </div>
+                <p id="item-result" role="status"></p>
+                <div class="panel">
+                    <search>
+                        <form id="search-form">
+                            <div class="search-controls">
+                                <div class="search-term">
+                                    <label for="search">Nome, categoria ou localização</label>
+                                    <input id="search" name="search" type="search" maxlength="100" />
+                                </div>
+                                <div>
+                                    <label for="availability">Disponibilidade</label>
+                                    <select id="availability" name="availability">
+                                        <option value="">Todos os itens</option>
+                                        <option value="available">Disponíveis</option>
+                                        <option value="unavailable">Indisponíveis</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="order">Ordenação</label>
+                                    <select id="order" name="order">
+                                        <option value="desc">Mais novos</option>
+                                        <option value="asc">Mais antigos</option>
+                                    </select>
+                                </div>
+                                <button type="submit">Buscar</button>
+                            </div>
+                        </form>
+                    </search>
+                    <p id="inventory-status" role="status"></p>
+                    <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: A tabela precisa receber foco para permitir rolagem pelo teclado. -->
+                    <section id="table-region" class="table-region" aria-label="Tabela do estoque" tabindex="0" hidden>
+                        <p class="table-hint">Role a tabela para ver categoria e localização.</p>
+                        <table aria-label="Estoque de itens">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Item</th>
+                                    <th scope="col">Disponível</th>
+                                    <th scope="col">Total</th>
+                                    <th scope="col">Categoria</th>
+                                    <th scope="col">Localização</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items"></tbody>
+                        </table>
+                    </section>
+                    <nav id="pagination" class="pagination" aria-label="Páginas do estoque" hidden>
+                        <button id="previous" class="secondary" type="button" disabled>Anterior</button>
+                        <span id="page" tabindex="-1">Página 1</span>
+                        <button id="next" class="secondary" type="button" disabled>Próxima</button>
+                    </nav>
+                </div>
+                <dialog id="item-dialog" class="panel" aria-labelledby="item-dialog-title">
+                    <h2 id="item-dialog-title">Cadastrar item</h2>
+                    <form id="item-form" method="dialog">
+                        <fieldset id="item-fields" aria-label="Dados do item">
+                            <label for="item-name">Nome do item</label>
+                            <input id="item-name" name="name" minlength="2" maxlength="50" required />
+                            <label for="item-location">Localização</label>
+                            <input id="item-location" name="location" maxlength="80" required />
+                            <label for="item-category">Categoria (opcional)</label>
+                            <input id="item-category" name="category" maxlength="30" />
+                            <p id="item-registered-quantity" hidden></p>
+                            <label for="item-quantity">Quantidade total</label>
+                            <input id="item-quantity" name="totalQuantity" type="number" min="0" max="2147483647" step="1" aria-describedby="item-registered-quantity" required />
+                            <div id="item-adjustment" hidden>
+                                <label for="item-adjustment-reason">Motivo do ajuste</label>
+                                <input id="item-adjustment-reason" name="adjustmentReason" minlength="3" maxlength="200" disabled />
+                            </div>
+                        </fieldset>
+                        <p id="item-form-status" role="status"></p>
+                        <div class="dialog-actions">
+                            <button id="open-loan-registration" class="secondary" type="button" aria-haspopup="dialog" hidden>Registrar empréstimo</button>
+                            <button id="open-item-loans" class="secondary" type="button" aria-haspopup="dialog" hidden>Empréstimos do item</button>
+                            <button id="open-adjustment-history" class="secondary" type="button" aria-haspopup="dialog" hidden>Histórico de ajustes</button>
+                            <button id="cancel-item" class="secondary" type="button">Voltar ao estoque</button>
+                            <button id="save-item" type="submit">Salvar item</button>
+                        </div>
+                    </form>
+                </dialog>
+                <dialog id="loan-dialog" class="panel" aria-labelledby="loan-dialog-title">
+                    <h2 id="loan-dialog-title">Registrar empréstimo</h2>
+                    <p id="loan-item"></p>
+                    <p id="loan-stock" role="status"></p>
+                    <form id="loan-client-search">
+                        <label for="loan-client-query">Nome ou e-mail do cliente</label>
+                        <input id="loan-client-query" type="search" maxlength="254" required />
+                        <button id="loan-search-button" class="secondary" type="submit">Buscar cliente</button>
+                        <p id="loan-client-results" role="status"></p>
+                    </form>
+                    <details id="loan-client-registration">
+                        <summary>Cadastrar cliente</summary>
+                        <form id="loan-client-create-form" method="dialog">
+                            <fieldset id="loan-client-create-fields" aria-label="Dados do novo cliente">
+                                <label for="new-client-name">Nome do novo cliente</label>
+                                <input id="new-client-name" name="name" minlength="2" maxlength="50" required />
+                                <label for="new-client-email">E-mail do novo cliente</label>
+                                <input id="new-client-email" name="email" type="email" maxlength="254" required />
+                                <label for="new-client-phone">Telefone do novo cliente (opcional)</label>
+                                <input id="new-client-phone" name="phone" type="tel" maxlength="32" />
+                            </fieldset>
+                            <button id="save-loan-client" class="secondary" type="submit">Salvar cliente</button>
+                        </form>
+                    </details>
+                    <p id="loan-client-create-status" role="status" tabindex="-1"></p>
+                    <form id="loan-form" method="dialog">
+                        <fieldset id="loan-fields" aria-label="Dados do empréstimo">
+                            <label for="loan-client">Cliente</label>
+                            <select id="loan-client" required>
+                                <option value="">Selecione um cliente</option>
+                            </select>
+                            <label for="loan-quantity">Quantidade emprestada</label>
+                            <input id="loan-quantity" type="number" min="1" step="1" value="1" required />
+                            <label for="loan-due">Prazo de devolução</label>
+                            <input id="loan-due" type="datetime-local" required />
+                        </fieldset>
+                        <p id="loan-attempt-summary" hidden></p>
+                        <p id="loan-status" role="status"></p>
+                        <div class="dialog-actions">
+                            <button id="close-loan-dialog" class="secondary" type="button">Voltar ao item</button>
+                            <button id="discard-loan-attempt" class="secondary" type="button" hidden>Descartar tentativa</button>
+                            <button id="save-loan" type="submit">Registrar empréstimo</button>
+                        </div>
+                    </form>
+                </dialog>
+                <dialog id="client-loan-search" class="panel" aria-labelledby="client-loan-search-title">
+                    <div class="inventory-heading">
+                        <h2 id="client-loan-search-title">Empréstimos por cliente</h2>
+                        <form method="dialog">
+                            <button class="secondary" type="submit">Voltar ao estoque</button>
+                        </form>
+                    </div>
+                    <form id="client-loan-query-form">
+                        <label for="client-loan-query">Nome ou e-mail do cliente</label>
+                        <input id="client-loan-query" type="search" maxlength="254" required />
+                        <button class="secondary" type="submit">Buscar cliente</button>
+                        <p id="client-loan-search-status" role="status"></p>
+                    </form>
+                    <form id="client-loan-selection" method="dialog" hidden>
+                        <label for="client-loan-client">Cliente</label>
+                        <select id="client-loan-client" required></select>
+                        <button type="submit" aria-haspopup="dialog" disabled>Consultar empréstimos</button>
+                    </form>
+                </dialog>
+                <dialog id="item-records" class="panel" aria-labelledby="records-title">
+                    <div class="inventory-heading">
+                        <h2 id="records-title">Registros do item</h2>
+                        <form method="dialog">
+                            <button id="close-item-records" class="secondary" type="submit">Voltar ao item</button>
+                        </form>
+                    </div>
+                    <p id="records-item" class="records-subject"></p>
+                    <div id="loan-records-filters" hidden>
+                        <label for="loan-records-status">Situação dos empréstimos</label>
+                        <select id="loan-records-status">
+                            <option value="active">Ativos</option>
+                            <option value="all">Todos</option>
+                            <option value="overdue">Atrasados</option>
+                            <option value="upcoming">Próximos 7 dias</option>
+                            <option value="returned">Devolvidos</option>
+                            <option value="cancelled">Cancelados</option>
+                        </select>
+                    </div>
+                    <p id="records-result" role="status"></p>
+                    <p id="records-status" role="status"></p>
+                    <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: Os registros precisam receber foco para rolar pelo teclado. -->
+                    <section id="records-region" class="records-region" aria-label="Registros do item" tabindex="0" hidden>
+                        <ul id="records-entries" class="records-entries"></ul>
+                    </section>
+                    <nav id="records-pagination" class="pagination" aria-label="Páginas dos registros do item" hidden>
+                        <button id="records-previous" class="secondary" type="button" disabled>Anterior</button>
+                        <span id="records-page" tabindex="-1">Página 1</span>
+                        <button id="records-next" class="secondary" type="button" disabled>Próxima</button>
+                    </nav>
+                </dialog>
+                <dialog id="loan-reopenings" class="panel" aria-labelledby="reopenings-title">
+                    <div class="inventory-heading">
+                        <h2 id="reopenings-title">Histórico de reaberturas</h2>
+                        <form method="dialog">
+                            <button id="close-reopenings" class="secondary" type="submit">Voltar aos empréstimos</button>
+                        </form>
+                    </div>
+                    <p id="reopenings-loan" class="records-subject"></p>
+                    <p id="reopenings-status" role="status"></p>
+                    <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: Os registros precisam receber foco para rolar pelo teclado. -->
+                    <section id="reopenings-region" class="records-region" aria-label="Registros de reabertura" tabindex="0" hidden>
+                        <ul id="reopenings-entries" class="records-entries"></ul>
+                    </section>
+                    <nav id="reopenings-pagination" class="pagination" aria-label="Páginas das reaberturas" hidden>
+                        <button id="reopenings-previous" class="secondary" type="button" disabled>Anterior</button>
+                        <span id="reopenings-page" tabindex="-1">Página 1</span>
+                        <button id="reopenings-next" class="secondary" type="button" disabled>Próxima</button>
+                    </nav>
+                </dialog>
+                <dialog id="loan-renewal" class="panel" aria-labelledby="renewal-title">
+                    <h2 id="renewal-title">Prorrogar prazo</h2>
+                    <p id="renewal-loan"></p>
+                    <p>Prazo atual <time id="renewal-current"></time></p>
+                    <form id="renewal-form" method="dialog">
+                        <label for="renewal-due">Novo prazo de devolução</label>
+                        <input id="renewal-due" type="datetime-local" required />
+                        <p id="renewal-status" role="status"></p>
+                        <div class="dialog-actions">
+                            <button id="close-renewal" class="secondary" type="button">Voltar aos empréstimos</button>
+                            <button id="save-renewal" type="submit">Salvar prazo</button>
+                        </div>
+                    </form>
+                </dialog>
+            </section>
+        </main>
+        <noscript><p>Ative o JavaScript para consultar o estoque.</p></noscript>
+    </body>
+</html>

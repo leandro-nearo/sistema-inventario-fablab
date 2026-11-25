@@ -11,3 +11,17 @@ export class InventoryInvariantError extends Error {
         this.name = "InventoryInvariantError";
     }
 }
+
+export class InventoryQuantityChangedError extends Error {
+    constructor() {
+        super("The total quantity changed");
+        this.name = "InventoryQuantityChangedError";
+    }
+}
+
+export class InventoryFieldsChangedError extends Error {
+    constructor() {
+        super("One or more item fields changed");
+        this.name = "InventoryFieldsChangedError";
+    }
+}

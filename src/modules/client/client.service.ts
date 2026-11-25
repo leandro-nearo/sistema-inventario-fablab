@@ -1,6 +1,11 @@
 import { MESSAGES } from "@src/constants/messages.js";
 import { AppError } from "@src/shared/errors/app.error.js";
-import type { ClientDTO, CreateClientDTO, UpdateClientDTO } from "./client.dtos.js";
+import type {
+    ClientDTO,
+    ClientListOptions,
+    CreateClientDTO,
+    UpdateClientDTO,
+} from "./client.dtos.js";
 import { CreateClientValidator } from "./input-validation/create-client.validator.js";
 import { UpdateClientValidator } from "./input-validation/update-client.validator.js";
 import { type ClientRepository, PrismaClientRepository } from "./repositories/client.repository.js";
@@ -19,7 +24,7 @@ export class ClientService {
         });
     }
 
-    async list(options: { skip: number; take: number; search?: string }): Promise<ClientDTO[]> {
+    async list(options: ClientListOptions): Promise<ClientDTO[]> {
         return this.clientRepository.list(options);
     }
 

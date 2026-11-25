@@ -1,6 +1,7 @@
 import type {
     CreateItemDTO,
     ItemDTO,
+    ItemListOptions,
     ListByCategoryDTO,
     ListByLocationDTO,
     UpdateItemDTO,
@@ -14,7 +15,9 @@ import {
 import { AppError } from "@src/shared/errors/app.error.js";
 import {
     InventoryCapacityError,
+    InventoryFieldsChangedError,
     InventoryInvariantError,
+    InventoryQuantityChangedError,
 } from "@src/shared/errors/inventory-capacity.error.js";
 import type { Pagination } from "@src/shared/validation/fields.js";
 
@@ -37,7 +40,7 @@ export class ItemService {
         return this.itemRepository.create(normalizedData);
     }
 
-    async list(options: Pagination & { search?: string }): Promise<ItemDTO[]> {
+    async list(options: ItemListOptions): Promise<ItemDTO[]> {
         return this.itemRepository.list(options);
     }
 
@@ -74,6 +77,20 @@ export class ItemService {
             if (!item) throw new AppError(MESSAGES.ITEM.NOT_FOUND.BY_ID, 404, "ITEM_NOT_FOUND");
             return item;
         } catch (error) {
+            if (error instanceof InventoryQuantityChangedError) {
+                throw new AppError(
+                    "A quantidade total mudou. Consulte o estoque antes de ajustar novamente.",
+                    409,
+                    "ITEM_QUANTITY_CHANGED",
+                );
+            }
+            if (error instanceof InventoryFieldsChangedError) {
+                throw new AppError(
+                    "Os dados do item mudaram. Consulte o item antes de salvar novamente.",
+                    409,
+                    "ITEM_FIELDS_CHANGED",
+                );
+            }
             if (error instanceof InventoryCapacityError) {
                 throw new AppError(
                     `A quantidade total não pode ser menor que as ${error.borrowedQuantity} unidades emprestadas.`,

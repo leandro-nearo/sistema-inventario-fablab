@@ -22,6 +22,7 @@ model User {
   createdLoans         Loan[]                @relation("LoanCreatedBy")
   returnedLoans        Loan[]                @relation("LoanReturnedBy")
   cancelledLoans       Loan[]                @relation("LoanCancelledBy")
+  loanCreationKeys     LoanCreationKey[]
   inventoryAdjustments InventoryAdjustment[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
@@ -115,9 +116,36 @@ model Loan {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([clientId])
+  creationKey LoanCreationKey?
+  reopenings  LoanReopening[]
+
+  @@index([loanDate, id])
+  @@index([clientId, loanDate, id])
   @@index([itemId])
   @@index([dueDate])
   @@index([returnDate])
   @@index([cancelledAt])
+}
+
+model LoanReopening {
+  id                   Int      @id @default(autoincrement())
+  loanId               Int
+  loan                 Loan     @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  actorId              Int
+  previousReturnedAt   DateTime
+  previousReturnedById Int?
+  createdAt            DateTime @default(now())
+
+  @@index([loanId, createdAt, id])
+}
+
+model LoanCreationKey {
+  userId      Int
+  key         String @db.Uuid
+  requestHash String @db.Char(64)
+  loanId      Int    @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loan        Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key])
 }

@@ -1,33 +1,88 @@
-import type { CreateLoanDTO, LoanDTO } from "@modules/loan/loan.dtos.js";
+import { createHash } from "node:crypto";
+import type {
+    CreateLoanDTO,
+    LoanCreationResult,
+    LoanDTO,
+    LoanListEntryDTO,
+    LoanListOptions,
+} from "@modules/loan/loan.dtos.js";
 import { MESSAGES } from "@src/constants/messages.js";
 import { AppError } from "@src/shared/errors/app.error.js";
 import { InsufficientStockError } from "@src/shared/errors/insufficient-stock.error.js";
 import {
     LoanCancelledError,
+    LoanCreationKeyConflictError,
     LoanDateOrderError,
+    LoanRenewalError,
+    LoanVersionConflictError,
     RelatedResourceNotFoundError,
 } from "@src/shared/errors/loan-state.error.js";
+import type { Pagination } from "@src/shared/validation/fields.js";
 import { CreateLoanValidator } from "./input-validation/create-loan.validator.js";
-import { type LoanRepository, PrismaLoanRepository } from "./repositories/loan.repository.js";
+import {
+    type LoanCreateData,
+    type LoanRenewalData,
+    type LoanRepository,
+    type LoanUpdateData,
+    PrismaLoanRepository,
+} from "./repositories/loan.repository.js";
+
+function loanNotFound() {
+    return new AppError(MESSAGES.LOAN.NOT_FOUND.BY_ID, 404, "LOAN_NOT_FOUND");
+}
+
+const renewalErrors = {
+    returned: ["Um empréstimo devolvido não pode ser renovado.", 409, "LOAN_RETURNED"],
+    date: [
+        "O novo prazo deve estar no futuro e ser posterior ao prazo atual.",
+        400,
+        "INVALID_LOAN_RENEWAL_DATE",
+    ],
+} as const;
 
 export class LoanService {
     constructor(private readonly loanRepository: LoanRepository = new PrismaLoanRepository()) {}
 
-    async create(data: CreateLoanDTO, actorId: number): Promise<LoanDTO> {
+    async create(data: CreateLoanDTO, actorId: number, key?: string): Promise<LoanCreationResult> {
         CreateLoanValidator.validate(data);
 
+        const loan: LoanCreateData = {
+            loanDate: new Date(data.loanDate),
+            dueDate: new Date(data.dueDate),
+            returnDate: data.returnDate ? new Date(data.returnDate) : null,
+            loanQuantity: data.loanQuantity,
+            clientId: data.clientId,
+            itemId: data.itemId,
+            createdById: actorId,
+            returnedById: data.returnDate ? actorId : null,
+        };
         try {
-            return await this.loanRepository.createWithStockReservation({
-                loanDate: new Date(data.loanDate),
-                dueDate: new Date(data.dueDate),
-                returnDate: data.returnDate ? new Date(data.returnDate) : null,
-                loanQuantity: data.loanQuantity,
-                clientId: data.clientId,
-                itemId: data.itemId,
-                createdById: actorId,
-                returnedById: data.returnDate ? actorId : null,
-            });
+            const request = key
+                ? {
+                      key,
+                      requestHash: createHash("sha256")
+                          .update(
+                              JSON.stringify([
+                                  loan.clientId,
+                                  loan.itemId,
+                                  loan.loanDate,
+                                  loan.dueDate,
+                                  loan.loanQuantity,
+                                  loan.returnDate,
+                              ]),
+                          )
+                          .digest("hex"),
+                  }
+                : undefined;
+            return await this.loanRepository.createWithStockReservation(loan, request);
         } catch (error) {
+            if (error instanceof LoanCreationKeyConflictError) {
+                throw new AppError(
+                    "A chave de cadastro já foi usada com outros dados.",
+                    409,
+                    "IDEMPOTENCY_KEY_CONFLICT",
+                );
+            }
             if (error instanceof InsufficientStockError) {
                 throw new AppError(
                     MESSAGES.LOAN.VALIDATION.QUANTITY_TOO_BIG(error.availableQuantity),
@@ -46,35 +101,47 @@ export class LoanService {
         }
     }
 
-    async list(options: {
-        skip: number;
-        take: number;
-        status: "all" | "active" | "returned" | "cancelled" | "overdue";
-    }): Promise<LoanDTO[]> {
+    async list(options: LoanListOptions): Promise<LoanListEntryDTO[]> {
         return this.loanRepository.list(options);
     }
 
     async getById(id: number): Promise<LoanDTO> {
         const loan = await this.loanRepository.findById(id);
-        if (!loan) throw new AppError(MESSAGES.LOAN.NOT_FOUND.BY_ID, 404, "LOAN_NOT_FOUND");
+        if (!loan) throw loanNotFound();
         return loan;
     }
 
-    async updateById(
-        id: number,
-        data: {
-            loanDate?: Date;
-            dueDate?: Date;
-            returnDate?: Date | null;
-        },
-        actorId: number,
-    ): Promise<LoanDTO> {
-        try {
-            const loan = await this.loanRepository.updateWithStock(id, data, actorId);
+    async listReopenings(id: number, pagination: Pagination) {
+        await this.getById(id);
+        return this.loanRepository.listReopenings(id, pagination);
+    }
 
-            if (!loan) {
-                throw new AppError(MESSAGES.LOAN.NOT_FOUND.BY_ID, 404);
-            }
+    updateById(
+        id: number,
+        data: LoanUpdateData,
+        actorId: number,
+        expectedUpdatedAt?: Date,
+    ): Promise<LoanDTO> {
+        return this.changeById(() =>
+            this.loanRepository.updateWithStock(id, data, actorId, expectedUpdatedAt),
+        );
+    }
+
+    returnById(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<LoanDTO> {
+        return this.changeById(() =>
+            this.loanRepository.returnWithStock(id, actorId, expectedUpdatedAt),
+        );
+    }
+
+    renewById(id: number, data: LoanRenewalData): Promise<LoanDTO> {
+        return this.changeById(() => this.loanRepository.renewDueDate(id, data));
+    }
+
+    private async changeById(change: () => Promise<LoanDTO | null>): Promise<LoanDTO> {
+        try {
+            const loan = await change();
+
+            if (!loan) throw loanNotFound();
 
             return loan;
         } catch (error) {
@@ -100,16 +167,27 @@ export class LoanService {
                 throw new AppError(message, 400, "INVALID_LOAN_DATES");
             }
 
+            if (error instanceof LoanRenewalError) {
+                const [message, status, code] = renewalErrors[error.reason];
+                throw new AppError(message, status, code);
+            }
+
+            if (error instanceof LoanVersionConflictError) {
+                throw new AppError(
+                    "O empréstimo mudou. Consulte o registro e tente novamente.",
+                    409,
+                    "LOAN_CHANGED",
+                );
+            }
+
             throw error;
         }
     }
 
-    async cancelById(id: number, actorId: number): Promise<void> {
-        const loan = await this.loanRepository.cancelWithStock(id, actorId);
-
-        if (!loan) {
-            throw new AppError(MESSAGES.LOAN.NOT_FOUND.BY_ID, 404);
-        }
+    async cancelById(id: number, actorId: number, expectedUpdatedAt?: Date): Promise<void> {
+        await this.changeById(() =>
+            this.loanRepository.cancelWithStock(id, actorId, expectedUpdatedAt),
+        );
     }
 }
 
