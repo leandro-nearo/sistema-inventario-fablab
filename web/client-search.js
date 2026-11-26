@@ -1,6 +1,6 @@
 export const clientSearchPageSize = 20;
 
-export function clientSearchPath(value) {
+export function clientSearchPath(value, page = 1) {
     const search = value.trim();
     if (!search) throw new Error("Informe o nome ou e-mail do cliente.");
 
@@ -11,5 +11,6 @@ export function clientSearchPath(value) {
     const params = new URLSearchParams(
         exactEmail ? { email: search, pageSize: 1 } : { search, pageSize: clientSearchPageSize },
     );
+    if (page > 1) params.set("page", page);
     return `/client?${params}`;
 }

@@ -54,7 +54,7 @@ O filtro **Situação dos empréstimos** abre em **Ativos**. Use **Atrasados** p
 
 Na tela principal do estoque, **Prazos de empréstimos** abre em **Atrasados**. Selecione **Próximos 7 dias** para ver os empréstimos que vencem nas próximas 168 horas. As duas listas ordenam os registros por prazo e mostram a localização e o ID de cada item. O filtro **Próximos 7 dias** também está disponível nas listas por item e por cliente.
 
-Use **Empréstimos por cliente** para buscar pelo nome ou localizar um cadastro pelo e-mail completo. Selecione o cliente e abra os empréstimos ativos, ou mude o filtro para consultar o histórico desse cliente.
+Use **Empréstimos por cliente** para buscar pelo nome ou localizar um cadastro pelo e-mail completo. Se houver mais resultados, use **Mais clientes**. Selecione o cliente e abra os empréstimos ativos, ou mude o filtro para consultar o histórico desse cliente.
 
 Use **Prorrogar prazo** em um empréstimo ativo e informe um novo prazo no horário local. Se outra pessoa alterar o empréstimo, confira o prazo atualizado antes de enviar novamente.
 
