@@ -1,3 +1,4 @@
+import { sendPage } from "@src/shared/pagination.js";
 import { IdValidator } from "@src/shared/utils/validators/id.validator.js";
 import { paginationFrom, paginationQuerySchema } from "@src/shared/validation/fields.js";
 import type { Request, Response } from "express";
@@ -14,12 +15,13 @@ class ClientController {
 
     async list(req: Request, res: Response) {
         const query = clientListQuerySchema.parse(req.query);
-        const clients = await clientService.list({
-            ...paginationFrom(query),
-            ...(query.search ? { search: query.search } : {}),
-            ...(query.email ? { email: query.email } : {}),
-        });
-        return res.status(200).json(clients);
+        return sendPage(res, query, (pagination) =>
+            clientService.list({
+                ...pagination,
+                ...(query.search ? { search: query.search } : {}),
+                ...(query.email ? { email: query.email } : {}),
+            }),
+        );
     }
 
     async getById(req: Request, res: Response) {

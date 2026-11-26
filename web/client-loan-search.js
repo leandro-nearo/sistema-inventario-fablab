@@ -7,19 +7,24 @@ export function createClientLoanSearch(dialog, request, showLoans) {
     const status = dialog.querySelector("#client-loan-search-status");
     const selection = dialog.querySelector("#client-loan-selection");
     const clientField = dialog.querySelector("#client-loan-client");
-    const consult = selection.querySelector("button");
+    const more = selection.querySelector("#client-loan-more");
+    const consult = selection.querySelector('button[type="submit"]');
     let matches = [];
+    let page = 0;
     let searching = null;
 
     function clearResults() {
         searching?.abort();
         searching = null;
         matches = [];
+        page = 0;
         selection.hidden = true;
+        more.hidden = true;
         consult.disabled = true;
         clientField.replaceChildren();
         status.textContent = "";
         searchButton.removeAttribute("aria-disabled");
+        more.removeAttribute("aria-disabled");
     }
 
     function resetSearch() {
@@ -27,44 +32,62 @@ export function createClientLoanSearch(dialog, request, showLoans) {
         clearResults();
     }
 
-    query.addEventListener("input", clearResults);
-    queryForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
+    async function loadPage(requestedPage) {
         if (!dialog.open || searching) return;
-        clearResults();
         const controller = new AbortController();
         searching = controller;
         searchButton.setAttribute("aria-disabled", "true");
+        more.setAttribute("aria-disabled", "true");
         status.textContent = "Buscando clientes…";
         try {
-            const clients = await request(clientSearchPath(query.value), {
-                signal: controller.signal,
-            });
+            const { records: clients, hasNext } = await request(
+                clientSearchPath(query.value, requestedPage),
+                {
+                    signal: controller.signal,
+                    withPageInfo: true,
+                },
+            );
             if (searching !== controller || !dialog.open) return;
-            matches = clients;
-            if (clients.length === 0) {
+            if (requestedPage === 1 && clients.length > 0) {
+                clientField.append(new Option("Selecione um cliente", ""));
+            }
+            page = requestedPage;
+            matches.push(...clients);
+            if (matches.length === 0) {
                 status.textContent = "Nenhum cliente encontrado.";
                 return;
             }
-            clientField.replaceChildren(
-                new Option("Selecione um cliente", ""),
+            clientField.append(
                 ...clients.map(({ id, name, email }) => new Option(`${name} (${email})`, id)),
             );
             selection.hidden = false;
+            const hasMore = hasNext ?? clients.length === clientSearchPageSize;
+            if (!hasMore && document.activeElement === more) clientField.focus();
+            more.hidden = !hasMore;
             status.textContent =
-                clients.length === clientSearchPageSize
-                    ? "20 resultados exibidos. Refine a busca se necessário."
-                    : clients.length === 1
-                      ? "1 cliente encontrado."
-                      : `${clients.length} clientes encontrados.`;
+                matches.length === 1
+                    ? "1 cliente exibido."
+                    : `${matches.length} clientes exibidos.`;
         } catch (error) {
             if (searching === controller && dialog.open) status.textContent = error.message;
         } finally {
             if (searching === controller) {
                 searching = null;
                 searchButton.removeAttribute("aria-disabled");
+                more.removeAttribute("aria-disabled");
             }
         }
+    }
+
+    query.addEventListener("input", clearResults);
+    queryForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (!dialog.open || searching) return;
+        clearResults();
+        void loadPage(1);
+    });
+    more.addEventListener("click", () => {
+        if (!more.hidden) void loadPage(page + 1);
     });
     clientField.addEventListener("change", () => {
         consult.disabled = !clientField.value;
