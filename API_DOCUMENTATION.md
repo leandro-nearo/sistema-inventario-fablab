@@ -41,7 +41,7 @@ Campos de texto enviados ao banco e termos de busca com o caractere nulo `U+0000
 
 Endpoints de lista aceitam `page` (padrão 1) e `pageSize` (padrão 50, máximo 100). A resposta continua sendo um array para manter compatibilidade.
 
-`GET /item`, `GET /item/:id/adjustments`, `GET /loan` e `GET /loan/:id/reopenings` retornam o cabeçalho `X-Has-Next-Page`. O valor é `true` quando há mais registros para os filtros aplicados e `false` na última página ou em uma página vazia.
+`GET /client`, `GET /item`, `GET /item/:id/adjustments`, `GET /loan` e `GET /loan/:id/reopenings` retornam o cabeçalho `X-Has-Next-Page`. O valor é `true` quando há mais registros para os filtros aplicados e `false` na última página ou em uma página vazia.
 
 Quando disponível, `search` busca um trecho literal sem distinguir maiúsculas de minúsculas. Os filtros de categoria e localização comparam o valor completo da mesma forma.
 

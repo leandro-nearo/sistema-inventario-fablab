@@ -193,7 +193,7 @@ databaseSuite("inventory API integration", () => {
         expect(response.body.error.code).toBe("VALIDATION_ERROR");
     });
 
-    it("filters clients by a complete email address", async () => {
+    it("filters clients by email and paginates matching names", async () => {
         const user = await prisma.user.findUniqueOrThrow({
             where: { email: "admin@example.com" },
         });
@@ -209,8 +209,19 @@ databaseSuite("inventory API integration", () => {
         });
         const list = () =>
             request(app).get("/client").set("Authorization", `Bearer ${accessToken}`);
-        const response = await list().query({ email: "  LAB_A@EXAMPLE.COM  " }).expect(200);
+        const response = await list()
+            .query({ email: "  LAB_A@EXAMPLE.COM  ", pageSize: 1 })
+            .expect("X-Has-Next-Page", "false")
+            .expect(200);
         expect(response.body).toMatchObject([{ id: client.id }]);
+        const matches = (page: number) => list().query({ search: "Outros", page, pageSize: 1 });
+        expect((await matches(1).expect("X-Has-Next-Page", "true").expect(200)).body).toMatchObject(
+            [{ email: "labxa@example.com" }],
+        );
+        expect(
+            (await matches(2).expect("X-Has-Next-Page", "false").expect(200)).body,
+        ).toMatchObject([{ email: "otherlab_a@example.com" }]);
+        await matches(3).expect("X-Has-Next-Page", "false").expect(200, []);
         await list().query({ email: client.email, search: "Outros" }).expect(200, []);
         await list().query({ email: "lab_a" }).expect(400);
     });

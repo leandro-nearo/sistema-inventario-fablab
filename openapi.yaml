@@ -288,6 +288,9 @@ paths:
       responses:
         "200":
           description: Clientes
+          headers:
+            X-Has-Next-Page:
+              $ref: "#/components/headers/HasNextPage"
           content:
             application/json:
               schema:
